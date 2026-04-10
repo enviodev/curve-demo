@@ -1,0 +1,83 @@
+# yaml-language-server: $schema=./node_modules/envio/evm.schema.json
+name: curve-crypto-pools
+
+contracts:
+  - name: TricryptoFactoryNG
+    events:
+      - event: TricryptoPoolDeployed(address pool, string name, string symbol, address weth, address[3] coins, address math, bytes32 salt, uint256 packed_precisions, uint256 packed_A_gamma, uint256 packed_fee_params, uint256 packed_rebalancing_params, uint256 packed_prices, address deployer)
+
+  - name: TwocryptoFactoryNG
+    events:
+      - event: TwocryptoPoolDeployed(address pool, string name, string symbol, address[2] coins, address math, bytes32 salt, uint256[2] precisions, uint256 packed_A_gamma, uint256 packed_fee_params, uint256 packed_rebalancing_params, uint256 packed_prices, address deployer)
+
+  - name: TwocryptoFactoryV1
+    events:
+      - event: CryptoPoolDeployed(address token, address[2] coins, uint256 A, uint256 gamma, uint256 mid_fee, uint256 out_fee, uint256 allowed_extra_profit, uint256 fee_gamma, uint256 adjustment_step, uint256 admin_fee, uint256 ma_half_time, uint256 initial_price, address deployer)
+
+  - name: CryptoPool
+    events:
+      - event: TokenExchange(address indexed buyer, uint256 sold_id, uint256 tokens_sold, uint256 bought_id, uint256 tokens_bought, uint256 fee, uint256 packed_price_scale)
+        field_selection:
+          transaction_fields:
+            - hash
+
+  # Standalone 2-coin Curve crypto pool with donation features. Not deployed
+  # by any of the tracked factories above, so it is registered statically by
+  # address per chain. Pool entity is initialized lazily on the first event.
+  - name: TwocryptoPool
+    events:
+      - event: TokenExchange(address indexed buyer, uint256 sold_id, uint256 tokens_sold, uint256 bought_id, uint256 tokens_bought, uint256 fee, uint256 price_scale)
+        field_selection:
+          transaction_fields:
+            - hash
+      - event: AddLiquidity(address indexed provider, address indexed receiver, uint256[2] token_amounts, uint256 fee, uint256 token_supply, uint256 price_scale)
+        field_selection:
+          transaction_fields:
+            - hash
+      - event: Donation(address indexed donor, uint256[2] token_amounts)
+        field_selection:
+          transaction_fields:
+            - hash
+      - event: RemoveLiquidity(address indexed provider, uint256[2] token_amounts, uint256 token_supply)
+        field_selection:
+          transaction_fields:
+            - hash
+      - event: RemoveLiquidityOne(address indexed provider, uint256 token_amount, uint256 coin_index, uint256 coin_amount, uint256 approx_fee, uint256 packed_price_scale)
+        field_selection:
+          transaction_fields:
+            - hash
+      - event: RemoveLiquidityImbalance(address indexed provider, uint256 lp_token_amount, uint256[2] token_amounts, uint256 approx_fee, uint256 price_scale)
+        field_selection:
+          transaction_fields:
+            - hash
+
+chains:
+  # Ethereum Mainnet
+  - id: 1
+    start_block: 12500000
+    contracts:
+      - name: TricryptoFactoryNG
+        address:
+          - 0x0c0e5f2fF0ff18a3be9b835635039256dC4B4963
+      - name: TwocryptoFactoryNG
+        address:
+          - 0x98EE851a00abeE0d95D08cF4CA2BdCE32aeaAF7F
+      - name: TwocryptoFactoryV1
+        address:
+          - 0xF18056Bbd320E96A48e3Fbf8bC061322531aac99
+      - name: TwocryptoPool
+        address:
+          - 0x83f24023d15d835a213df24fd309c47dab5beb32
+      - name: CryptoPool
+
+  # Arbitrum
+  - id: 42161
+    start_block: 50000000
+    contracts:
+      - name: TricryptoFactoryNG
+        address:
+          - 0xbC0797015fcFc47d9C1856639CaE50D0e69FbEE8
+      - name: TwocryptoFactoryNG
+        address:
+          - 0x98EE851a00abeE0d95D08cF4CA2BdCE32aeaAF7F
+      - name: CryptoPool

@@ -1,0 +1,67 @@
+type GlobalState {
+  id: ID!
+  chainId: Int!
+  totalPools: Int!
+  totalSwaps: BigInt!
+  lastUpdatedBlock: Int!
+  lastUpdatedTimestamp: BigInt!
+}
+
+type Pool {
+  id: ID!
+  nCoins: Int!
+  coinAddresses: [String!]!
+  coinSymbols: [String!]!
+  coinDecimals: [Int!]!
+  lastPrices: [BigInt!]!
+  priceScales: [BigInt!]!
+  balances: [BigInt!]!
+  totalSwapCount: BigInt!
+  lastUpdatedBlock: Int!
+  lastUpdatedTimestamp: BigInt!
+  swaps: [Swap!]! @derivedFrom(field: "pool")
+  liquidityEvents: [LiquidityEvent!]! @derivedFrom(field: "pool")
+}
+
+enum LiquidityEventKind {
+  ADD
+  REMOVE
+  REMOVE_ONE
+  REMOVE_IMBALANCE
+  DONATION
+}
+
+type LiquidityEvent {
+  id: ID!
+  pool: Pool! @index
+  kind: LiquidityEventKind!
+  provider: String! @index
+  tokenAmounts: [BigInt!]!
+  lpSupply: BigInt
+  lpBurned: BigInt
+  coinIndex: Int
+  fee: BigInt
+  timestamp: BigInt! @index
+  blockNumber: Int!
+  txHash: String!
+}
+
+type Swap {
+  id: ID!
+  pool: Pool! @index
+  buyer: String! @index
+  soldTokenIndex: Int!
+  soldTokenSymbol: String!
+  soldAmount: BigInt!
+  soldDecimals: Int!
+  boughtTokenIndex: Int!
+  boughtTokenSymbol: String!
+  boughtAmount: BigInt!
+  boughtDecimals: Int!
+  fee: BigInt!
+  timestamp: BigInt! @index
+  blockNumber: Int!
+  txHash: String!
+  lastPrices: [BigInt!]!
+  priceScales: [BigInt!]!
+}
