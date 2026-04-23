@@ -7,6 +7,7 @@ import {
 } from "../effects.js";
 import { tokenId } from "../constants.js";
 import {
+  ZERO,
   computePricing,
   computeTvlUsd,
   ensureAllPoolPairs,
@@ -83,6 +84,7 @@ async function ensurePool(event: EventLike, context: any): Promise<Pool> {
     priceScales: Array(N_COINS - 1).fill(0n),
     balances: Array(N_COINS).fill(0n),
     totalSwapCount: 0n,
+    totalVolumeUsd: ZERO,
     tvlUsd: undefined,
     hasDonations: false,
     isActive: true,
@@ -102,6 +104,7 @@ async function ensurePool(event: EventLike, context: any): Promise<Pool> {
     chainId,
     totalPools: (global?.totalPools ?? 0) + 1,
     totalSwaps: global?.totalSwaps ?? 0n,
+    totalVolumeUsd: global?.totalVolumeUsd ?? ZERO,
     lastUpdatedBlock: event.block.number,
     lastUpdatedTimestamp: BigInt(event.block.timestamp),
   });
@@ -203,12 +206,15 @@ LegacyTricryptoPool.TokenExchange.handler(async ({ event, context }) => {
   );
   const tvlUsd = computeTvlUsd({ ...pool, balances }, allTokens);
 
+  const swapVolume = pricing.usdVolume ?? ZERO;
+
   context.Pool.set({
     ...pool,
     lastPrices,
     priceScales,
     balances,
     totalSwapCount: pool.totalSwapCount + 1n,
+    totalVolumeUsd: pool.totalVolumeUsd.plus(swapVolume),
     tvlUsd,
     lastUpdatedBlock: event.block.number,
     lastUpdatedTimestamp: BigInt(event.block.timestamp),
@@ -220,6 +226,7 @@ LegacyTricryptoPool.TokenExchange.handler(async ({ event, context }) => {
     context.GlobalState.set({
       ...global,
       totalSwaps: global.totalSwaps + 1n,
+      totalVolumeUsd: global.totalVolumeUsd.plus(swapVolume),
       lastUpdatedBlock: event.block.number,
       lastUpdatedTimestamp: BigInt(event.block.timestamp),
     });

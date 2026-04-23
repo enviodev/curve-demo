@@ -3,6 +3,7 @@ type GlobalState {
   chainId: Int!
   totalPools: Int!
   totalSwaps: BigInt!
+  totalVolumeUsd: BigDecimal!
   lastUpdatedBlock: Int!
   lastUpdatedTimestamp: BigInt!
 }
@@ -62,6 +63,7 @@ type Pool {
   priceScales: [BigInt!]!
   balances: [BigInt!]!
   totalSwapCount: BigInt!
+  totalVolumeUsd: BigDecimal!
   tvlUsd: BigDecimal
   hasDonations: Boolean!
   isActive: Boolean!

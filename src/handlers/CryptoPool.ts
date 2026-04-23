@@ -2,6 +2,7 @@ import { CryptoPool, type EvmChainId, type PoolPrice } from "generated";
 import { getPoolState } from "../effects.js";
 import { tokenId } from "../constants.js";
 import {
+  ZERO,
   computePricing,
   computeTvlUsd,
   pairIdForSwap,
@@ -117,12 +118,15 @@ CryptoPool.TokenExchange.handler(async ({ event, context }) => {
     allTokens,
   );
 
+  const swapVolume = pricing.usdVolume ?? ZERO;
+
   context.Pool.set({
     ...pool,
     lastPrices,
     priceScales,
     balances,
     totalSwapCount: pool.totalSwapCount + 1n,
+    totalVolumeUsd: pool.totalVolumeUsd.plus(swapVolume),
     tvlUsd,
     lastUpdatedBlock: event.block.number,
     lastUpdatedTimestamp: BigInt(event.block.timestamp),
@@ -134,6 +138,7 @@ CryptoPool.TokenExchange.handler(async ({ event, context }) => {
     context.GlobalState.set({
       ...global,
       totalSwaps: global.totalSwaps + 1n,
+      totalVolumeUsd: global.totalVolumeUsd.plus(swapVolume),
       lastUpdatedBlock: event.block.number,
       lastUpdatedTimestamp: BigInt(event.block.timestamp),
     });

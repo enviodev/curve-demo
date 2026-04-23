@@ -109,6 +109,12 @@ export type PricingResult = {
   usdReferencePrice: BigDecimal | undefined;
   usdReferenceVolume: BigDecimal | undefined;
   usdFee: BigDecimal | undefined;
+  // Consolidated per-swap USD volume to attribute to the pool / globalstate.
+  // Defined as the average of main and reference USD legs when both exist
+  // (matching Uniswap V4's trackedAmountUSD/2 convention, which avoids
+  // double-counting the two sides of a single trade). Falls back to
+  // whichever side is defined; undefined if neither is.
+  usdVolume: BigDecimal | undefined;
   tokensSoldDecimal: BigDecimal;
   tokensBoughtDecimal: BigDecimal;
   feeDecimal: BigDecimal | undefined;
@@ -291,6 +297,15 @@ export function computePricing(
     }
   }
 
+  let usdVolume: BigDecimal | undefined;
+  if (usdMainVolume !== undefined && usdReferenceVolume !== undefined) {
+    usdVolume = usdMainVolume.plus(usdReferenceVolume).dividedBy(2);
+  } else if (usdMainVolume !== undefined) {
+    usdVolume = usdMainVolume;
+  } else if (usdReferenceVolume !== undefined) {
+    usdVolume = usdReferenceVolume;
+  }
+
   return {
     price,
     usdMainPrice: mainUsdPrice,
@@ -298,6 +313,7 @@ export function computePricing(
     usdReferencePrice: referenceUsdPrice,
     usdReferenceVolume,
     usdFee,
+    usdVolume,
     tokensSoldDecimal,
     tokensBoughtDecimal,
     feeDecimal,

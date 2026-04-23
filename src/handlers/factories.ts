@@ -5,7 +5,7 @@ import {
   type Pool,
 } from "generated";
 import { getTokenSymbol, getTokenDecimals } from "../effects.js";
-import { ensureAllPoolPairs, ensureToken } from "../pricing.js";
+import { ZERO, ensureAllPoolPairs, ensureToken } from "../pricing.js";
 
 type CreatePoolArgs = {
   chainId: number;
@@ -61,6 +61,7 @@ async function createPool(context: any, args: CreatePoolArgs) {
     priceScales: Array(nCoins - 1).fill(0n),
     balances: Array(nCoins).fill(0n),
     totalSwapCount: 0n,
+    totalVolumeUsd: ZERO,
     tvlUsd: undefined,
     hasDonations: args.hasDonations,
     isActive: true,
@@ -82,6 +83,7 @@ async function createPool(context: any, args: CreatePoolArgs) {
     chainId,
     totalPools: (existing?.totalPools ?? 0) + 1,
     totalSwaps: existing?.totalSwaps ?? 0n,
+    totalVolumeUsd: existing?.totalVolumeUsd ?? ZERO,
     lastUpdatedBlock: block.number,
     lastUpdatedTimestamp: BigInt(block.timestamp),
   });
