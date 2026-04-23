@@ -7,8 +7,53 @@ type GlobalState {
   lastUpdatedTimestamp: BigInt!
 }
 
+enum PoolType {
+  TRICRYPTO_NG
+  TWOCRYPTO_NG
+  CRYPTO_V1
+  TRICRYPTO_LEGACY
+  TWOCRYPTO_STANDALONE
+}
+
+enum PriceSource {
+  STABLECOIN
+  DERIVED
+}
+
+enum PriceType {
+  TOKEN_EXCHANGE
+  LAST_PRICES
+}
+
+type Registry {
+  id: ID!
+  chainId: Int!
+  address: String!
+  registryType: String!
+}
+
+type Token {
+  id: ID!
+  chainId: Int!
+  address: String!
+  symbol: String!
+  decimals: Int!
+  isStablecoin: Boolean!
+  usdPrice: BigDecimal
+  priceSource: PriceSource
+  lastPricedBlock: Int
+  lastPricedTimestamp: BigInt
+}
+
 type Pool {
   id: ID!
+  chainId: Int!
+  address: String!
+  lpTokenAddress: String!
+  symbol: String!
+  name: String!
+  poolType: PoolType!
+  registry: Registry
   nCoins: Int!
   coinAddresses: [String!]!
   coinSymbols: [String!]!
@@ -17,10 +62,51 @@ type Pool {
   priceScales: [BigInt!]!
   balances: [BigInt!]!
   totalSwapCount: BigInt!
+  tvlUsd: BigDecimal
+  hasDonations: Boolean!
+  isActive: Boolean!
+  deploymentBlock: Int!
+  deploymentTimestamp: BigInt!
+  deploymentTxHash: String!
   lastUpdatedBlock: Int!
   lastUpdatedTimestamp: BigInt!
-  swaps: [Swap!]! @derivedFrom(field: "pool")
   liquidityEvents: [LiquidityEvent!]! @derivedFrom(field: "pool")
+  poolPairs: [PoolPair!]! @derivedFrom(field: "pool")
+  poolPrices: [PoolPrice!]! @derivedFrom(field: "pool")
+}
+
+type PoolPair {
+  id: ID!
+  pool: Pool! @index
+  mainTokenIndex: Int!
+  referenceTokenIndex: Int!
+  mainToken: Token!
+  referenceToken: Token!
+}
+
+type PoolPrice {
+  id: ID!
+  chainId: Int!
+  pool: Pool! @index
+  poolPair: PoolPair! @index
+  priceType: PriceType!
+  soldId: Int!
+  boughtId: Int!
+  tokensSold: BigDecimal!
+  tokensBought: BigDecimal!
+  price: BigDecimal!
+  blockNumber: Int! @index
+  timestamp: BigInt! @index
+  txHash: String!
+  logIndex: Int
+  isRelevant: Boolean!
+  buyer: String! @index
+  fee: BigDecimal
+  usdMainPrice: BigDecimal
+  usdMainVolume: BigDecimal
+  usdReferencePrice: BigDecimal
+  usdReferenceVolume: BigDecimal
+  usdFee: BigDecimal
 }
 
 enum LiquidityEventKind {
@@ -44,24 +130,4 @@ type LiquidityEvent {
   timestamp: BigInt! @index
   blockNumber: Int!
   txHash: String!
-}
-
-type Swap {
-  id: ID!
-  pool: Pool! @index
-  buyer: String! @index
-  soldTokenIndex: Int!
-  soldTokenSymbol: String!
-  soldAmount: BigInt!
-  soldDecimals: Int!
-  boughtTokenIndex: Int!
-  boughtTokenSymbol: String!
-  boughtAmount: BigInt!
-  boughtDecimals: Int!
-  fee: BigInt!
-  timestamp: BigInt! @index
-  blockNumber: Int!
-  txHash: String!
-  lastPrices: [BigInt!]!
-  priceScales: [BigInt!]!
 }

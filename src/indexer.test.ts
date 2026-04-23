@@ -3,28 +3,28 @@ import { TestHelpers } from "generated";
 const { MockDb, TricryptoFactoryNG } = TestHelpers;
 
 describe("TricryptoFactoryNG pool deployment", () => {
-  it("creates a Pool entity and updates GlobalState", async () => {
+  it("creates Pool, Token and PoolPair entities and updates GlobalState", async () => {
     const mockDb = MockDb.createMockDb();
-    const event =
-      TricryptoFactoryNG.TricryptoPoolDeployed.createMockEvent({
-        pool: "0x7F86Bf177Dd4F3494b841a37e810A34dD56c829B",
-        name: "TricryptoUSDC",
-        symbol: "crvUSDCWBTCWETH",
-        weth: "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
-        coins: [
-          "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
-          "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599",
-          "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
-        ],
-        math: "0x0000000000000000000000000000000000000000",
-        salt: "0x0000000000000000000000000000000000000000000000000000000000000000",
-        packed_precisions: 0n,
-        packed_A_gamma: 0n,
-        packed_fee_params: 0n,
-        packed_rebalancing_params: 0n,
-        packed_prices: 0n,
-        deployer: "0x0000000000000000000000000000000000000000",
-      });
+    const event = TricryptoFactoryNG.TricryptoPoolDeployed.createMockEvent({
+      pool: "0x7F86Bf177Dd4F3494b841a37e810A34dD56c829B",
+      name: "TricryptoUSDC",
+      symbol: "crvUSDCWBTCWETH",
+      weth: "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
+      coins: [
+        "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48", // USDC
+        "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599", // WBTC
+        "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2", // WETH
+      ],
+      math: "0x0000000000000000000000000000000000000000",
+      salt: "0x0000000000000000000000000000000000000000000000000000000000000000",
+      packed_precisions: 0n,
+      packed_A_gamma: 0n,
+      packed_fee_params: 0n,
+      packed_rebalancing_params: 0n,
+      packed_prices: 0n,
+      deployer: "0x0000000000000000000000000000000000000000",
+      mockEventData: { chainId: 1 },
+    });
 
     const mockDbUpdated =
       await TricryptoFactoryNG.TricryptoPoolDeployed.processEvent({
@@ -32,16 +32,47 @@ describe("TricryptoFactoryNG pool deployment", () => {
         mockDb,
       });
 
+    const poolAddress =
+      "0x7f86bf177dd4f3494b841a37e810a34dd56c829b"; // lower-cased id
     const pool = mockDbUpdated.entities.Pool.get(
-      `${event.chainId}_0x7F86Bf177Dd4F3494b841a37e810A34dD56c829B`
+      `${event.chainId}_${poolAddress}`,
     );
     expect(pool).toBeDefined();
     expect(pool?.nCoins).toBe(3);
     expect(pool?.coinAddresses).toHaveLength(3);
+    expect(pool?.poolType).toBe("TRICRYPTO_NG");
+    expect(pool?.symbol).toBe("crvUSDCWBTCWETH");
 
     const global = mockDbUpdated.entities.GlobalState.get(`${event.chainId}`);
     expect(global).toBeDefined();
     expect(global?.totalPools).toBe(1);
     expect(global?.totalSwaps).toBe(0n);
+
+    // Stablecoin coin 0 (USDC) should be seeded with $1 usdPrice
+    const usdcId = `${event.chainId}_0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48`;
+    const usdc = mockDbUpdated.entities.Token.get(usdcId);
+    expect(usdc).toBeDefined();
+    expect(usdc?.isStablecoin).toBe(true);
+    expect(usdc?.priceSource).toBe("STABLECOIN");
+    expect(usdc?.usdPrice?.toString()).toBe("1");
+
+    // WBTC and WETH should be created but unpriced
+    const wbtcId = `${event.chainId}_0x2260fac5e5542a773aa44fbcfedf7c193bc2c599`;
+    const wbtc = mockDbUpdated.entities.Token.get(wbtcId);
+    expect(wbtc).toBeDefined();
+    expect(wbtc?.isStablecoin).toBe(false);
+    expect(wbtc?.usdPrice).toBeUndefined();
+
+    // Two PoolPairs should exist: (main=1, ref=0) and (main=2, ref=0)
+    const pair1 = mockDbUpdated.entities.PoolPair.get(
+      `${event.chainId}_${poolAddress}_1_0`,
+    );
+    expect(pair1).toBeDefined();
+    expect(pair1?.mainTokenIndex).toBe(1);
+    expect(pair1?.referenceTokenIndex).toBe(0);
+    const pair2 = mockDbUpdated.entities.PoolPair.get(
+      `${event.chainId}_${poolAddress}_2_0`,
+    );
+    expect(pair2).toBeDefined();
   });
 });
