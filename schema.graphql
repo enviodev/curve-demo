@@ -198,7 +198,7 @@ type Market {
   marketType: MarketType!
   controller: String! @index
   amm: String! @index
-  vault: String
+  vault: String @index
   collateralToken: Token!
   borrowedToken: Token!
   monetaryPolicy: String!
@@ -207,6 +207,8 @@ type Market {
   totalCollateral: BigInt!
   totalDebtUsd: BigDecimal
   totalCollateralUsd: BigDecimal
+  totalSupplied: BigInt!
+  totalSuppliedUsd: BigDecimal
   nLoans: Int!
   rate: BigInt
   createdBlock: Int!
@@ -218,6 +220,19 @@ type Market {
   loanEvents: [LoanEvent!]! @derivedFrom(field: "market")
   liquidations: [Liquidation!]! @derivedFrom(field: "market")
   marketSnapshots: [MarketSnapshot!]! @derivedFrom(field: "market")
+  vaultPositions: [VaultPosition!]! @derivedFrom(field: "market")
+}
+
+# Per-lender position in a Curve Lend ERC4626 vault (supply side).
+type VaultPosition {
+  id: ID!
+  chainId: Int!
+  market: Market! @index
+  user: String! @index
+  shares: BigInt!
+  isActive: Boolean!
+  lastUpdatedBlock: Int!
+  lastUpdatedTimestamp: BigInt!
 }
 
 type Loan {

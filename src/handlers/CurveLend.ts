@@ -46,6 +46,7 @@ indexer.contractRegister(
   async ({ event, context }) => {
     context.chain.LendController.add(event.params.controller);
     context.chain.LendAMM.add(event.params.amm);
+    context.chain.LendVault.add(event.params.vault);
   },
 );
 
@@ -81,6 +82,8 @@ indexer.onEvent(
       totalCollateral: 0n,
       totalDebtUsd: undefined,
       totalCollateralUsd: undefined,
+      totalSupplied: 0n,
+      totalSuppliedUsd: undefined,
       nLoans: 0,
       rate: undefined,
       createdBlock: event.block.number,
@@ -137,6 +140,8 @@ indexer.onEvent(
       totalCollateral: 0n,
       totalDebtUsd: undefined,
       totalCollateralUsd: undefined,
+      totalSupplied: 0n,
+      totalSuppliedUsd: undefined,
       nLoans: 0,
       rate: undefined,
       createdBlock: event.block.number,
@@ -354,6 +359,73 @@ indexer.onEvent(
     context.Market.set({
       ...market,
       rate: event.params.rate,
+      lastUpdatedBlock: event.block.number,
+      lastUpdatedTimestamp: BigInt(event.block.timestamp),
+    });
+  },
+);
+
+// --- Lend vault (lender / supply side, ERC4626) -----------------------------
+
+async function vaultMarket(context: any, vault: string) {
+  const markets = await context.Market.getWhere({ vault: { _eq: vault } });
+  return markets[0];
+}
+
+indexer.onEvent(
+  { contract: "LendVault", event: "Deposit" },
+  async ({ event, context }) => {
+    const chainId = event.chainId;
+    const vault = event.srcAddress.toLowerCase();
+    const market = await vaultMarket(context, vault);
+    if (!market) return;
+    const user = event.params.owner.toLowerCase();
+    const posId = `${chainId}_${vault}_${user}`;
+    const existing = await context.VaultPosition.get(posId);
+    context.VaultPosition.set({
+      id: posId,
+      chainId,
+      market_id: market.id,
+      user,
+      shares: (existing?.shares ?? 0n) + event.params.shares,
+      isActive: true,
+      lastUpdatedBlock: event.block.number,
+      lastUpdatedTimestamp: BigInt(event.block.timestamp),
+    });
+    context.Market.set({
+      ...market,
+      totalSupplied: market.totalSupplied + event.params.assets,
+      lastUpdatedBlock: event.block.number,
+      lastUpdatedTimestamp: BigInt(event.block.timestamp),
+    });
+  },
+);
+
+indexer.onEvent(
+  { contract: "LendVault", event: "Withdraw" },
+  async ({ event, context }) => {
+    const chainId = event.chainId;
+    const vault = event.srcAddress.toLowerCase();
+    const market = await vaultMarket(context, vault);
+    if (!market) return;
+    const user = event.params.owner.toLowerCase();
+    const posId = `${chainId}_${vault}_${user}`;
+    const existing = await context.VaultPosition.get(posId);
+    const newShares = (existing?.shares ?? 0n) - event.params.shares;
+    context.VaultPosition.set({
+      id: posId,
+      chainId,
+      market_id: market.id,
+      user,
+      shares: newShares > 0n ? newShares : 0n,
+      isActive: newShares > 0n,
+      lastUpdatedBlock: event.block.number,
+      lastUpdatedTimestamp: BigInt(event.block.timestamp),
+    });
+    const newSupplied = market.totalSupplied - event.params.assets;
+    context.Market.set({
+      ...market,
+      totalSupplied: newSupplied > 0n ? newSupplied : 0n,
       lastUpdatedBlock: event.block.number,
       lastUpdatedTimestamp: BigInt(event.block.timestamp),
     });

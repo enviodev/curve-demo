@@ -163,6 +163,17 @@ contracts:
     events:
       - event: SetRate(uint256 rate, uint256 rate_mul, uint256 time)
 
+  - name: LendVault
+    events:
+      - event: Deposit(address indexed sender, address indexed owner, uint256 assets, uint256 shares)
+        field_selection:
+          transaction_fields:
+            - hash
+      - event: Withdraw(address indexed sender, address indexed receiver, address indexed owner, uint256 assets, uint256 shares)
+        field_selection:
+          transaction_fields:
+            - hash
+
   # crvUSD mint markets. ControllerFactory.AddMarket registers the same
   # Controller + LLAMMA contracts that Curve Lend uses, so the engine is shared.
   - name: CrvUsdControllerFactory
@@ -208,6 +219,7 @@ chains:
         start_block: 19422666
       - name: LendController
       - name: LendAMM
+      - name: LendVault
       - name: CrvUsdControllerFactory
         address:
           - 0xC9332fdCB1C491Dcc683bAe86Fe3cb70360738BC
@@ -235,6 +247,7 @@ chains:
         start_block: 193652607
       - name: LendController
       - name: LendAMM
+      - name: LendVault
 
   # Optimism
   - id: 10
@@ -250,6 +263,7 @@ chains:
         start_block: 125072267
       - name: LendController
       - name: LendAMM
+      - name: LendVault
 
   # Base
   - id: 8453
@@ -310,6 +324,7 @@ chains:
         start_block: 9466075
       - name: LendController
       - name: LendAMM
+      - name: LendVault
 
   # Sonic
   - id: 146
@@ -325,6 +340,7 @@ chains:
         start_block: 11208753
       - name: LendController
       - name: LendAMM
+      - name: LendVault
 
   # Avalanche
   - id: 43114
