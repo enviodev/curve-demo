@@ -235,6 +235,66 @@ type VaultPosition {
   lastUpdatedTimestamp: BigInt!
 }
 
+# crvUSD savings vault (scrvUSD) — ERC4626. Deposit crvUSD, earn borrower
+# interest. Aggregate supply + per-depositor positions.
+type SavingsVault {
+  id: ID!
+  chainId: Int!
+  address: String!
+  totalAssets: BigInt!
+  totalShares: BigInt!
+  depositorCount: Int!
+  lastUpdatedBlock: Int!
+  lastUpdatedTimestamp: BigInt!
+  positions: [SavingsPosition!]! @derivedFrom(field: "vault")
+}
+
+type SavingsPosition {
+  id: ID!
+  chainId: Int!
+  vault: SavingsVault! @index
+  user: String! @index
+  shares: BigInt!
+  isActive: Boolean!
+  lastUpdatedBlock: Int!
+  lastUpdatedTimestamp: BigInt!
+}
+
+# =========================================================================
+# Gauges + GaugeController (CRV emissions). A Gauge stakes a pool's LP token
+# and directs CRV emissions by its gauge weight; staked + working supply drive
+# the CRV reward APR. GaugeVote records veCRV holders steering emissions.
+# =========================================================================
+
+type Gauge {
+  id: ID!
+  chainId: Int!
+  address: String!
+  gaugeType: Int!
+  weight: BigInt!
+  totalWeight: BigInt!
+  totalStaked: BigInt!
+  workingSupply: BigInt!
+  isKilled: Boolean!
+  createdBlock: Int!
+  createdTimestamp: BigInt!
+  lastUpdatedBlock: Int!
+  lastUpdatedTimestamp: BigInt!
+  votes: [GaugeVote!]! @derivedFrom(field: "gauge")
+}
+
+type GaugeVote {
+  id: ID!
+  chainId: Int!
+  gauge: Gauge! @index
+  user: String! @index
+  weight: BigInt!
+  votedAt: BigInt!
+  timestamp: BigInt! @index
+  blockNumber: Int!
+  txHash: String!
+}
+
 type Loan {
   id: ID!
   chainId: Int!
