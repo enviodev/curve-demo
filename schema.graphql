@@ -83,6 +83,7 @@ type Pool {
   poolPairs: [PoolPair!]! @derivedFrom(field: "pool")
   poolPrices: [PoolPrice!]! @derivedFrom(field: "pool")
   swaps: [Swap!]! @derivedFrom(field: "pool")
+  snapshots: [PoolSnapshot!]! @derivedFrom(field: "pool")
 }
 
 # General per-swap record. Used by all pool classes (stableswap today; crypto
@@ -103,6 +104,22 @@ type Swap {
   timestamp: BigInt! @index
   txHash: String!
   logIndex: Int!
+}
+
+# Daily per-pool time-series, upserted on each swap/liquidity event.
+# id = chainId_poolAddress_day (day = unix timestamp / 86400).
+type PoolSnapshot {
+  id: ID!
+  chainId: Int!
+  pool: Pool! @index
+  day: Int! @index
+  timestamp: BigInt!
+  blockNumber: Int!
+  tvlUsd: BigDecimal
+  virtualPrice: BigInt
+  balances: [BigInt!]!
+  volumeUsd: BigDecimal!
+  swapCount: Int!
 }
 
 type PoolPair {

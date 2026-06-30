@@ -8,7 +8,14 @@ import {
   getTokenSymbol,
 } from "../effects.js";
 import { tokenId } from "../constants.js";
-import { ZERO, ensureToken, toDecimal, computeTvlUsd } from "../pricing.js";
+import {
+  ZERO,
+  ensureToken,
+  toDecimal,
+  computeTvlUsd,
+  deriveAndApplySwapPrice,
+  upsertDailySnapshot,
+} from "../pricing.js";
 
 const ZERO_ADDR = "0x0000000000000000000000000000000000000000";
 
@@ -236,6 +243,18 @@ indexer.onEvent(
       volumeUsd = tokensBoughtDecimal.multipliedBy(boughtTok.usdPrice);
     }
 
+    // Price-graph: propagate USD price across the swap to the unpriced side.
+    if (soldTok && boughtTok) {
+      deriveAndApplySwapPrice(
+        context,
+        soldTok,
+        boughtTok,
+        tokensSoldDecimal,
+        tokensBoughtDecimal,
+        event.block,
+      );
+    }
+
     context.Swap.set({
       id: `${chainId}_${event.block.number}_${event.logIndex}`,
       chainId,
@@ -259,11 +278,13 @@ indexer.onEvent(
     const updated = await context.Pool.get(pool.id);
     const swapVol = volumeUsd ?? ZERO;
     if (updated) {
-      context.Pool.set({
+      const finalPool = {
         ...updated,
         totalSwapCount: updated.totalSwapCount + 1n,
         totalVolumeUsd: updated.totalVolumeUsd.plus(swapVol),
-      });
+      };
+      context.Pool.set(finalPool);
+      await upsertDailySnapshot(context, finalPool, event.block, swapVol, 1);
     }
 
     const globalId = `${chainId}`;
@@ -315,6 +336,10 @@ async function recordLiquidity(
     txHash: event.transaction.hash,
   });
   await refreshStableState(event, context, pool);
+  const refreshed = await context.Pool.get(pool.id);
+  if (refreshed) {
+    await upsertDailySnapshot(context, refreshed, event.block, ZERO, 0);
+  }
 }
 
 indexer.onEvent(

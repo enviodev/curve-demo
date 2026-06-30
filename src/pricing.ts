@@ -356,3 +356,100 @@ export function computeTvlUsd(
   }
   return total;
 }
+
+/**
+ * Price-graph step: derive the USD price of the unpriced (or previously-derived)
+ * side of a swap from the priced side, and persist it on the Token. Cycle-safe —
+ * never overwrites a stablecoin anchor, and only propagates from a known price.
+ * `tokens*Decimal` are human-unit (decimal-normalized) amounts.
+ */
+export function deriveAndApplySwapPrice(
+  context: any,
+  sold: Token,
+  bought: Token,
+  tokensSoldDecimal: BigDecimal,
+  tokensBoughtDecimal: BigDecimal,
+  block: { number: number; timestamp: number },
+): void {
+  if (
+    !tokensSoldDecimal.isGreaterThan(0) ||
+    !tokensBoughtDecimal.isGreaterThan(0)
+  ) {
+    return;
+  }
+  const soldP = sold.usdPrice;
+  const boughtP = bought.usdPrice;
+
+  const apply = (token: Token, price: BigDecimal) => {
+    context.Token.set({
+      ...token,
+      usdPrice: price,
+      priceSource: "DERIVED",
+      lastPricedBlock: block.number,
+      lastPricedTimestamp: BigInt(block.timestamp),
+    });
+  };
+
+  if (
+    soldP !== undefined &&
+    !bought.isStablecoin &&
+    (boughtP === undefined || bought.priceSource === "DERIVED")
+  ) {
+    apply(
+      bought,
+      tokensSoldDecimal.multipliedBy(soldP).dividedBy(tokensBoughtDecimal),
+    );
+  } else if (
+    boughtP !== undefined &&
+    !sold.isStablecoin &&
+    (soldP === undefined || sold.priceSource === "DERIVED")
+  ) {
+    apply(
+      sold,
+      tokensBoughtDecimal.multipliedBy(boughtP).dividedBy(tokensSoldDecimal),
+    );
+  }
+}
+
+/**
+ * Upsert the pool's daily snapshot (TVL / virtual price / balances + accumulated
+ * volume and swap count). Keyed by chainId_poolAddress_day so a day's row is
+ * updated in place as more events land.
+ */
+export async function upsertDailySnapshot(
+  context: any,
+  pool: Pool,
+  block: { number: number; timestamp: number },
+  addedVolumeUsd: BigDecimal,
+  swapInc: number,
+): Promise<void> {
+  const day = Math.floor(block.timestamp / 86400);
+  const id = `${pool.chainId}_${pool.address}_${day}`;
+  const existing = await context.PoolSnapshot.get(id);
+  if (existing) {
+    context.PoolSnapshot.set({
+      ...existing,
+      timestamp: BigInt(block.timestamp),
+      blockNumber: block.number,
+      tvlUsd: pool.tvlUsd,
+      virtualPrice: pool.virtualPrice,
+      balances: pool.balances,
+      volumeUsd: existing.volumeUsd.plus(addedVolumeUsd),
+      swapCount: existing.swapCount + swapInc,
+    });
+  } else {
+    context.PoolSnapshot.set({
+      id,
+      chainId: pool.chainId,
+      pool_id: pool.id,
+      day,
+      timestamp: BigInt(block.timestamp),
+      blockNumber: block.number,
+      tvlUsd: pool.tvlUsd,
+      virtualPrice: pool.virtualPrice,
+      balances: pool.balances,
+      volumeUsd: addedVolumeUsd,
+      swapCount: swapInc,
+    });
+  }
+}
