@@ -106,10 +106,6 @@ contracts:
         field_selection:
           transaction_fields:
             - hash
-      - event: TokenExchangeUnderlying(address indexed buyer, int128 sold_id, uint256 tokens_sold, int128 bought_id, uint256 tokens_bought)
-        field_selection:
-          transaction_fields:
-            - hash
       - event: AddLiquidity(address indexed provider, uint256[] token_amounts, uint256[] fees, uint256 invariant, uint256 token_supply)
         field_selection:
           transaction_fields:

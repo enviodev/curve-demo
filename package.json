@@ -4,8 +4,8 @@
   "type": "module",
   "scripts": {
     "codegen": "envio codegen",
-    "dev": "envio dev",
-    "start": "envio start",
+    "dev": "ENVIO_INDEXING_MAX_BUFFER_SIZE=50000 envio dev",
+    "start": "ENVIO_INDEXING_MAX_BUFFER_SIZE=50000 envio start",
     "test": "vitest run"
   },
   "devDependencies": {
@@ -14,7 +14,7 @@
     "vitest": "4.0.18"
   },
   "dependencies": {
-    "envio": "3.3.0-alpha.4",
+    "envio": "3.3.0-alpha.5",
     "viem": "^2.47.6"
   },
   "engines": {
