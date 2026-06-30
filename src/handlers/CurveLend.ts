@@ -365,6 +365,31 @@ indexer.onEvent(
   },
 );
 
+// --- LLAMMA soft-liquidation trades -----------------------------------------
+
+indexer.onEvent(
+  { contract: "LendAMM", event: "TokenExchange" },
+  async ({ event, context }) => {
+    const amm = event.srcAddress.toLowerCase();
+    const markets = await context.Market.getWhere({ amm: { _eq: amm } });
+    const market = markets[0];
+    if (!market) return;
+    context.AmmSwap.set({
+      id: `${event.chainId}_${event.block.number}_${event.logIndex}`,
+      chainId: event.chainId,
+      market_id: market.id,
+      buyer: event.params.buyer.toLowerCase(),
+      soldId: Number(event.params.sold_id),
+      boughtId: Number(event.params.bought_id),
+      tokensSold: event.params.tokens_sold,
+      tokensBought: event.params.tokens_bought,
+      blockNumber: event.block.number,
+      timestamp: BigInt(event.block.timestamp),
+      txHash: event.transaction.hash,
+    });
+  },
+);
+
 // --- Lend vault (lender / supply side, ERC4626) -----------------------------
 
 async function vaultMarket(context: any, vault: string) {

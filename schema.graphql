@@ -221,6 +221,7 @@ type Market {
   liquidations: [Liquidation!]! @derivedFrom(field: "market")
   marketSnapshots: [MarketSnapshot!]! @derivedFrom(field: "market")
   vaultPositions: [VaultPosition!]! @derivedFrom(field: "market")
+  ammSwaps: [AmmSwap!]! @derivedFrom(field: "market")
 }
 
 # Per-lender position in a Curve Lend ERC4626 vault (supply side).
@@ -411,4 +412,60 @@ type MarketSnapshot {
   totalDebtUsd: BigDecimal
   nLoans: Int!
   rate: BigInt
+}
+
+# A trade through a market's LLAMMA AMM — i.e. collateral being soft-liquidated
+# (or de-liquidated) as the oracle price moves through the position bands.
+type AmmSwap {
+  id: ID!
+  chainId: Int!
+  market: Market! @index
+  buyer: String! @index
+  soldId: Int!
+  boughtId: Int!
+  tokensSold: BigInt!
+  tokensBought: BigInt!
+  blockNumber: Int!
+  timestamp: BigInt! @index
+  txHash: String!
+}
+
+# =========================================================================
+# crvUSD PegKeepers — the peg-defense reserves. A keeper provides crvUSD into
+# its stable pool when crvUSD trades above $1 and withdraws when below; its
+# `debt` (net provided) is a direct peg-pressure signal. Each action is stamped
+# with the live crvUSD price from the PriceAggregator.
+# =========================================================================
+
+enum PegKeeperActionKind {
+  PROVIDE
+  WITHDRAW
+  PROFIT
+}
+
+type PegKeeper {
+  id: ID!
+  chainId: Int!
+  address: String!
+  stablecoin: String!
+  debt: BigInt!
+  totalProvided: BigInt!
+  totalWithdrawn: BigInt!
+  totalProfit: BigInt!
+  actionCount: Int!
+  lastUpdatedBlock: Int!
+  lastUpdatedTimestamp: BigInt!
+  actions: [PegKeeperAction!]! @derivedFrom(field: "pegKeeper")
+}
+
+type PegKeeperAction {
+  id: ID!
+  chainId: Int!
+  pegKeeper: PegKeeper! @index
+  kind: PegKeeperActionKind!
+  amount: BigInt!
+  pegPrice: BigDecimal
+  blockNumber: Int!
+  timestamp: BigInt! @index
+  txHash: String!
 }

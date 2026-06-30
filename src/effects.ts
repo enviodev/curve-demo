@@ -297,6 +297,36 @@ export const getPoolCoins = createEffect(
   },
 );
 
+// crvUSD PriceAggregator — system-wide crvUSD price (~1e18 = $1). Used to stamp
+// the peg price at the moment of each PegKeeper action. Resilient: returns "0"
+// if the read reverts (e.g. an archive gap) so the handler treats it as unknown.
+const CRVUSD_AGGREGATOR = "0x18672b1b0c623a30089A280Ed9256379fb0E4E62";
+const crvUsdAggregatorAbi = parseAbi(["function price() view returns (uint256)"]);
+
+export const getCrvUsdPegPrice = createEffect(
+  {
+    name: "getCrvUsdPegPrice",
+    input: S.schema({ chainId: S.number, blockNumber: S.number }),
+    output: S.string,
+    cache: true,
+    rateLimit: false,
+  },
+  async ({ input }) => {
+    try {
+      const client = getClient(input.chainId);
+      const price = await client.readContract({
+        address: CRVUSD_AGGREGATOR as `0x${string}`,
+        abi: crvUsdAggregatorAbi,
+        functionName: "price",
+        blockNumber: BigInt(input.blockNumber),
+      });
+      return (price as bigint).toString();
+    } catch {
+      return "0";
+    }
+  },
+);
+
 // --- ERC20 metadata ---
 
 export const getTokenSymbol = createEffect(
