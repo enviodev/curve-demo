@@ -179,3 +179,236 @@ type LiquidityEvent {
   blockNumber: Int!
   txHash: String!
 }
+
+# =========================================================================
+# crvUSD mint markets + Curve Lend — shared Controller + LLAMMA design.
+# A "Market" is one borrowable market; "Loan" is a single user's position
+# (collateral, debt, soft-liquidation band range n1..n2). This is the
+# per-user health/position data Curve's own public API does not expose.
+# =========================================================================
+
+enum MarketType {
+  CRVUSD_MINT
+  LEND
+}
+
+type Market {
+  id: ID!
+  chainId: Int!
+  marketType: MarketType!
+  controller: String! @index
+  amm: String! @index
+  vault: String @index
+  collateralToken: Token!
+  borrowedToken: Token!
+  monetaryPolicy: String!
+  priceOracle: String
+  totalDebt: BigInt!
+  totalCollateral: BigInt!
+  totalDebtUsd: BigDecimal
+  totalCollateralUsd: BigDecimal
+  totalSupplied: BigInt!
+  totalSuppliedUsd: BigDecimal
+  nLoans: Int!
+  rate: BigInt
+  createdBlock: Int!
+  createdTimestamp: BigInt!
+  createdTxHash: String!
+  lastUpdatedBlock: Int!
+  lastUpdatedTimestamp: BigInt!
+  loans: [Loan!]! @derivedFrom(field: "market")
+  loanEvents: [LoanEvent!]! @derivedFrom(field: "market")
+  liquidations: [Liquidation!]! @derivedFrom(field: "market")
+  marketSnapshots: [MarketSnapshot!]! @derivedFrom(field: "market")
+  vaultPositions: [VaultPosition!]! @derivedFrom(field: "market")
+}
+
+# Per-lender position in a Curve Lend ERC4626 vault (supply side).
+type VaultPosition {
+  id: ID!
+  chainId: Int!
+  market: Market! @index
+  user: String! @index
+  shares: BigInt!
+  isActive: Boolean!
+  lastUpdatedBlock: Int!
+  lastUpdatedTimestamp: BigInt!
+}
+
+# crvUSD savings vault (scrvUSD) — ERC4626. Deposit crvUSD, earn borrower
+# interest. Aggregate supply + per-depositor positions.
+type SavingsVault {
+  id: ID!
+  chainId: Int!
+  address: String!
+  totalAssets: BigInt!
+  totalShares: BigInt!
+  depositorCount: Int!
+  lastUpdatedBlock: Int!
+  lastUpdatedTimestamp: BigInt!
+  positions: [SavingsPosition!]! @derivedFrom(field: "vault")
+}
+
+type SavingsPosition {
+  id: ID!
+  chainId: Int!
+  vault: SavingsVault! @index
+  user: String! @index
+  shares: BigInt!
+  isActive: Boolean!
+  lastUpdatedBlock: Int!
+  lastUpdatedTimestamp: BigInt!
+}
+
+# =========================================================================
+# Gauges + GaugeController (CRV emissions). A Gauge stakes a pool's LP token
+# and directs CRV emissions by its gauge weight; staked + working supply drive
+# the CRV reward APR. GaugeVote records veCRV holders steering emissions.
+# =========================================================================
+
+type Gauge {
+  id: ID!
+  chainId: Int!
+  address: String!
+  gaugeType: Int!
+  weight: BigInt!
+  totalWeight: BigInt!
+  totalStaked: BigInt!
+  workingSupply: BigInt!
+  isKilled: Boolean!
+  createdBlock: Int!
+  createdTimestamp: BigInt!
+  lastUpdatedBlock: Int!
+  lastUpdatedTimestamp: BigInt!
+  votes: [GaugeVote!]! @derivedFrom(field: "gauge")
+}
+
+type GaugeVote {
+  id: ID!
+  chainId: Int!
+  gauge: Gauge! @index
+  user: String! @index
+  weight: BigInt!
+  votedAt: BigInt!
+  timestamp: BigInt! @index
+  blockNumber: Int!
+  txHash: String!
+}
+
+# =========================================================================
+# veCRV vote-escrow (locks) + fee distribution (protocol revenue to lockers).
+# =========================================================================
+
+type Lock {
+  id: ID!
+  chainId: Int!
+  user: String! @index
+  lockedAmount: BigInt!
+  unlockTime: BigInt!
+  isActive: Boolean!
+  createdBlock: Int!
+  createdTimestamp: BigInt!
+  lastUpdatedBlock: Int!
+  lastUpdatedTimestamp: BigInt!
+}
+
+type VeCrvState {
+  id: ID!
+  chainId: Int!
+  totalLocked: BigInt!
+  lockCount: Int!
+  lastUpdatedBlock: Int!
+  lastUpdatedTimestamp: BigInt!
+}
+
+type FeeDistribution {
+  id: ID!
+  chainId: Int!
+  distributor: String! @index
+  token: String!
+  weekTime: BigInt!
+  tokens: BigInt!
+  blockNumber: Int!
+  timestamp: BigInt! @index
+}
+
+type FeeClaim {
+  id: ID!
+  chainId: Int!
+  distributor: String! @index
+  recipient: String! @index
+  amount: BigInt!
+  epoch: BigInt!
+  blockNumber: Int!
+  timestamp: BigInt! @index
+  txHash: String!
+}
+
+type Loan {
+  id: ID!
+  chainId: Int!
+  market: Market! @index
+  user: String! @index
+  collateral: BigInt!
+  debt: BigInt!
+  collateralUsd: BigDecimal
+  debtUsd: BigDecimal
+  n1: BigInt!
+  n2: BigInt!
+  liquidationDiscount: BigInt!
+  isActive: Boolean!
+  createdBlock: Int!
+  createdTimestamp: BigInt!
+  lastUpdatedBlock: Int!
+  lastUpdatedTimestamp: BigInt!
+}
+
+enum LoanEventKind {
+  BORROW
+  REPAY
+  REMOVE_COLLATERAL
+  LIQUIDATE
+}
+
+type LoanEvent {
+  id: ID!
+  chainId: Int!
+  market: Market! @index
+  user: String! @index
+  kind: LoanEventKind!
+  collateralChange: BigInt!
+  debtChange: BigInt!
+  blockNumber: Int!
+  timestamp: BigInt! @index
+  txHash: String!
+}
+
+type Liquidation {
+  id: ID!
+  chainId: Int!
+  market: Market! @index
+  user: String! @index
+  liquidator: String! @index
+  collateralReceived: BigInt!
+  stablecoinReceived: BigInt!
+  debt: BigInt!
+  isSelf: Boolean!
+  blockNumber: Int!
+  timestamp: BigInt! @index
+  txHash: String!
+}
+
+# Daily per-market time-series (debt / collateral / loan count / rate).
+type MarketSnapshot {
+  id: ID!
+  chainId: Int!
+  market: Market! @index
+  day: Int! @index
+  timestamp: BigInt!
+  blockNumber: Int!
+  totalDebt: BigInt!
+  totalCollateral: BigInt!
+  totalDebtUsd: BigDecimal
+  nLoans: Int!
+  rate: BigInt
+}

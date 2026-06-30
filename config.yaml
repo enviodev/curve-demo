@@ -129,11 +129,136 @@ contracts:
           transaction_fields:
             - hash
 
+  # Curve Lend (one-way lending markets). NewVault carries every address, so
+  # controller/amm/vault are registered with no RPC resolution. The Controller
+  # + LLAMMA design is shared with the crvUSD mint markets.
+  - name: OneWayLendingFactory
+    events:
+      - event: NewVault(uint256 indexed id, address indexed collateral_token, address indexed borrowed_token, address vault, address controller, address amm, address price_oracle, address monetary_policy)
+        field_selection:
+          transaction_fields:
+            - hash
+
+  - name: LendController
+    events:
+      - event: UserState(address indexed user, uint256 collateral, uint256 debt, int256 n1, int256 n2, uint256 liquidation_discount)
+      - event: Borrow(address indexed user, uint256 collateral_increase, uint256 loan_increase)
+        field_selection:
+          transaction_fields:
+            - hash
+      - event: Repay(address indexed user, uint256 collateral_decrease, uint256 loan_decrease)
+        field_selection:
+          transaction_fields:
+            - hash
+      - event: RemoveCollateral(address indexed user, uint256 collateral_decrease)
+        field_selection:
+          transaction_fields:
+            - hash
+      - event: Liquidate(address indexed liquidator, address indexed user, uint256 collateral_received, uint256 stablecoin_received, uint256 debt)
+        field_selection:
+          transaction_fields:
+            - hash
+
+  - name: LendAMM
+    events:
+      - event: SetRate(uint256 rate, uint256 rate_mul, uint256 time)
+
+  - name: LendVault
+    events:
+      - event: Deposit(address indexed sender, address indexed owner, uint256 assets, uint256 shares)
+        field_selection:
+          transaction_fields:
+            - hash
+      - event: Withdraw(address indexed sender, address indexed receiver, address indexed owner, uint256 assets, uint256 shares)
+        field_selection:
+          transaction_fields:
+            - hash
+
+  # crvUSD mint markets. ControllerFactory.AddMarket registers the same
+  # Controller + LLAMMA contracts that Curve Lend uses, so the engine is shared.
+  - name: CrvUsdControllerFactory
+    events:
+      - event: AddMarket(address indexed collateral, address controller, address amm, address monetary_policy, uint256 ix)
+        field_selection:
+          transaction_fields:
+            - hash
+
+  # Gauges + GaugeController (CRV emissions / gauge weights).
+  - name: GaugeController
+    events:
+      - event: NewGauge(address addr, int128 gauge_type, uint256 weight)
+        field_selection:
+          transaction_fields:
+            - hash
+      - event: NewGaugeWeight(address gauge_address, uint256 time, uint256 weight, uint256 total_weight)
+      - event: VoteForGauge(uint256 time, address user, address gauge_addr, uint256 weight)
+        field_selection:
+          transaction_fields:
+            - hash
+
+  - name: Gauge
+    events:
+      - event: Deposit(address indexed provider, uint256 value)
+        field_selection:
+          transaction_fields:
+            - hash
+      - event: Withdraw(address indexed provider, uint256 value)
+        field_selection:
+          transaction_fields:
+            - hash
+      - event: UpdateLiquidityLimit(address user, uint256 original_balance, uint256 original_supply, uint256 working_balance, uint256 working_supply)
+
+  # veCRV vote-escrow + fee distribution (protocol revenue).
+  - name: VotingEscrow
+    events:
+      - event: Deposit(address indexed provider, uint256 value, uint256 indexed locktime, int128 type, uint256 ts)
+        field_selection:
+          transaction_fields:
+            - hash
+      - event: Withdraw(address indexed provider, uint256 value, uint256 ts)
+        field_selection:
+          transaction_fields:
+            - hash
+      - event: Supply(uint256 prevSupply, uint256 supply)
+
+  - name: FeeDistributor
+    events:
+      - event: CheckpointToken(uint256 time, uint256 tokens)
+      - event: Claimed(address indexed recipient, uint256 amount, uint256 claim_epoch, uint256 max_epoch)
+        field_selection:
+          transaction_fields:
+            - hash
+
+  # scrvUSD savings vault (ERC4626).
+  - name: ScrvUsdVault
+    events:
+      - event: Deposit(address indexed sender, address indexed owner, uint256 assets, uint256 shares)
+        field_selection:
+          transaction_fields:
+            - hash
+      - event: Withdraw(address indexed sender, address indexed receiver, address indexed owner, uint256 assets, uint256 shares)
+        field_selection:
+          transaction_fields:
+            - hash
+
 chains:
   # Ethereum Mainnet
   - id: 1
-    start_block: 12195812
+    start_block: 10647879
     contracts:
+      - name: GaugeController
+        address:
+          - 0x2F50D538606Fa9EDD2B11E2446BEb18C9D5846bB
+      - name: Gauge
+      - name: VotingEscrow
+        address:
+          - 0x5f3b5DfEb7B28CDbD7FAba78963EE202a494e2A2
+        start_block: 10650387
+      - name: FeeDistributor
+        address:
+          - 0xA464e6DCda8AC41e03616F95f4BC98a13b8922Dc
+          - 0xD16d5eC345Dd86Fb63C6a9C43c517210F1027914
+        start_block: 11362396
       - name: TricryptoFactoryNG
         address:
           - 0x0c0e5f2fF0ff18a3be9b835635039256dC4B4963
@@ -159,6 +284,21 @@ chains:
         address:
           - 0x90E00ACe148ca3b23Ac1bC8C240C2a7Dd9c2d7f5
       - name: LegacyStablePool
+      - name: OneWayLendingFactory
+        address:
+          - 0xea6876dde9e3467564acbee1ed5bac88783205e0
+        start_block: 19422666
+      - name: LendController
+      - name: LendAMM
+      - name: LendVault
+      - name: CrvUsdControllerFactory
+        address:
+          - 0xC9332fdCB1C491Dcc683bAe86Fe3cb70360738BC
+        start_block: 17257965
+      - name: ScrvUsdVault
+        address:
+          - 0x0655977FEb2f289A4aB78af67BAB0d17aAb84367
+        start_block: 21087964
 
   # Arbitrum
   - id: 42161
@@ -176,6 +316,13 @@ chains:
           - 0x9AF14D26075f142eb3F292D5065EB3faa646167b
         start_block: 144181239
       - name: StableswapPool
+      - name: OneWayLendingFactory
+        address:
+          - 0xcaEC110C784c9DF37240a8Ce096D352A75922DeA
+        start_block: 193652607
+      - name: LendController
+      - name: LendAMM
+      - name: LendVault
 
   # Optimism
   - id: 10
@@ -185,6 +332,13 @@ chains:
         address:
           - 0x5eeE3091f747E60a045a2E715a4c71e600e31F6E
       - name: StableswapPool
+      - name: OneWayLendingFactory
+        address:
+          - 0x5EA8f3D674C70b020586933A0a5b250734798BeF
+        start_block: 125072267
+      - name: LendController
+      - name: LendAMM
+      - name: LendVault
 
   # Base
   - id: 8453
@@ -239,6 +393,13 @@ chains:
         address:
           - 0xd2002373543Ce3527023C75e7518C274A51ce712
       - name: StableswapPool
+      - name: OneWayLendingFactory
+        address:
+          - 0xf3c9bdAB17B7016fBE3B77D17b1602A7db93ac66
+        start_block: 9466075
+      - name: LendController
+      - name: LendAMM
+      - name: LendVault
 
   # Sonic
   - id: 146
@@ -248,6 +409,13 @@ chains:
         address:
           - 0x7C2085419BE6a04f4ad88ea91bC9F5C6E6C463D8
       - name: StableswapPool
+      - name: OneWayLendingFactory
+        address:
+          - 0x30D1859DaD5A52aE03B6e259d1b48c4b12933993
+        start_block: 11208753
+      - name: LendController
+      - name: LendAMM
+      - name: LendVault
 
   # Avalanche
   - id: 43114
