@@ -43,17 +43,17 @@ Fraxtal, Sonic, Avalanche.
 - **Resilient RPC** — `safeMulticall` falls back to individual `eth_call`s for
   historical blocks before multicall3 (Ethereum block 14353601).
 
-## Storage: Postgres + ClickHouse
+## Storage
 
-Every entity is dual-written to **both** backends (see the `storage:` block in
-`config.yaml`):
+**Postgres** serves the GraphQL API (via Hasura) at http://localhost:8080 and is
+the default backend.
 
-- **Postgres** serves the GraphQL API (via Hasura) at http://localhost:8080
-- **ClickHouse** is a columnar store for heavy analytical queries
-
-`pnpm dev` auto-provisions Postgres, Hasura **and** ClickHouse as local Docker
-containers — no external services required. For a managed ClickHouse, set
-`ENVIO_CLICKHOUSE_HOST` / `_DATABASE` / `_USERNAME` / `_PASSWORD` in `.env`.
+The indexer also supports an **optional ClickHouse dual-write** — a columnar
+store for heavy analytical queries — toggled via the `storage:` block in
+`config.yaml` (currently disabled). When enabled, every entity is written to both
+backends and `pnpm dev` auto-provisions ClickHouse as a local Docker container;
+for a managed instance set `ENVIO_CLICKHOUSE_HOST` / `_DATABASE` / `_USERNAME` /
+`_PASSWORD` in `.env`.
 
 ## Quick start
 
