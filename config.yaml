@@ -70,10 +70,69 @@ contracts:
           transaction_fields:
             - hash
 
+  # Stableswap-NG factory. Deploy events carry NO pool address, so the address
+  # is resolved in contractRegister via pool_list(pool_count()-1).
+  - name: StableswapFactoryNG
+    events:
+      - event: PlainPoolDeployed(address[] coins, uint256 A, uint256 fee, address deployer)
+        field_selection:
+          transaction_fields:
+            - hash
+      - event: MetaPoolDeployed(address coin, address base_pool, uint256 A, uint256 fee, address deployer)
+        field_selection:
+          transaction_fields:
+            - hash
+
+  # Stableswap-NG pool, registered dynamically by the factory above. Pool
+  # entity is initialized lazily on the first event we see for it.
+  - name: StableswapPool
+    events:
+      - event: TokenExchange(address indexed buyer, int128 sold_id, uint256 tokens_sold, int128 bought_id, uint256 tokens_bought)
+        field_selection:
+          transaction_fields:
+            - hash
+      - event: TokenExchangeUnderlying(address indexed buyer, int128 sold_id, uint256 tokens_sold, int128 bought_id, uint256 tokens_bought)
+        field_selection:
+          transaction_fields:
+            - hash
+      - event: AddLiquidity(address indexed provider, uint256[] token_amounts, uint256[] fees, uint256 invariant, uint256 token_supply)
+        field_selection:
+          transaction_fields:
+            - hash
+      - event: RemoveLiquidity(address indexed provider, uint256[] token_amounts, uint256[] fees, uint256 token_supply)
+        field_selection:
+          transaction_fields:
+            - hash
+      - event: RemoveLiquidityOne(address indexed provider, int128 token_id, uint256 token_amount, uint256 coin_amount, uint256 token_supply)
+        field_selection:
+          transaction_fields:
+            - hash
+      - event: RemoveLiquidityImbalance(address indexed provider, uint256[] token_amounts, uint256[] fees, uint256 invariant, uint256 token_supply)
+        field_selection:
+          transaction_fields:
+            - hash
+
+  # Legacy stableswap — pools are registered via the Main Registry's PoolAdded
+  # (which, unlike the NG factory, carries the pool address). Metadata is read
+  # from the registry; swaps share the int128 TokenExchange signature.
+  - name: MainRegistry
+    events:
+      - event: PoolAdded(address indexed pool, bytes rate_method_id)
+        field_selection:
+          transaction_fields:
+            - hash
+
+  - name: LegacyStablePool
+    events:
+      - event: TokenExchange(address indexed buyer, int128 sold_id, uint256 tokens_sold, int128 bought_id, uint256 tokens_bought)
+        field_selection:
+          transaction_fields:
+            - hash
+
 chains:
   # Ethereum Mainnet
   - id: 1
-    start_block: 12500000
+    start_block: 12195812
     contracts:
       - name: TricryptoFactoryNG
         address:
@@ -91,6 +150,15 @@ chains:
         address:
           - 0xd51a44d3fae010294c616388b506acda1bfaae46
       - name: CryptoPool
+      - name: StableswapFactoryNG
+        address:
+          - 0x6A8cbed756804B16E05E741eDaBd5cB544AE21bf
+        start_block: 18433925
+      - name: StableswapPool
+      - name: MainRegistry
+        address:
+          - 0x90E00ACe148ca3b23Ac1bC8C240C2a7Dd9c2d7f5
+      - name: LegacyStablePool
 
   # Arbitrum
   - id: 42161
@@ -103,3 +171,89 @@ chains:
         address:
           - 0x98EE851a00abeE0d95D08cF4CA2BdCE32aeaAF7F
       - name: CryptoPool
+      - name: StableswapFactoryNG
+        address:
+          - 0x9AF14D26075f142eb3F292D5065EB3faa646167b
+        start_block: 144181239
+      - name: StableswapPool
+
+  # Optimism
+  - id: 10
+    start_block: 111362244
+    contracts:
+      - name: StableswapFactoryNG
+        address:
+          - 0x5eeE3091f747E60a045a2E715a4c71e600e31F6E
+      - name: StableswapPool
+
+  # Base
+  - id: 8453
+    start_block: 7886150
+    contracts:
+      - name: StableswapFactoryNG
+        address:
+          - 0xd2002373543Ce3527023C75e7518C274A51ce712
+      - name: StableswapPool
+
+  # Polygon
+  - id: 137
+    start_block: 50625140
+    contracts:
+      - name: StableswapFactoryNG
+        address:
+          - 0x1764ee18e8B3ccA4787249Ceb249356192594585
+      - name: StableswapPool
+
+  # Gnosis (xDai)
+  - id: 100
+    start_block: 30507817
+    contracts:
+      - name: StableswapFactoryNG
+        address:
+          - 0xbC0797015fcFc47d9C1856639CaE50D0e69FbEE8
+      - name: StableswapPool
+
+  # BSC
+  - id: 56
+    start_block: 34487718
+    contracts:
+      - name: StableswapFactoryNG
+        address:
+          - 0xd7E72f3615aa65b92A4DBdC211E296a35512988B
+      - name: StableswapPool
+
+  # Fantom
+  - id: 250
+    start_block: 72534264
+    contracts:
+      - name: StableswapFactoryNG
+        address:
+          - 0xe61Fb97Ef6eBFBa12B36Ffd7be785c1F5A2DE66b
+      - name: StableswapPool
+
+  # Fraxtal
+  - id: 252
+    start_block: 1911424
+    contracts:
+      - name: StableswapFactoryNG
+        address:
+          - 0xd2002373543Ce3527023C75e7518C274A51ce712
+      - name: StableswapPool
+
+  # Sonic
+  - id: 146
+    start_block: 3231331
+    contracts:
+      - name: StableswapFactoryNG
+        address:
+          - 0x7C2085419BE6a04f4ad88ea91bC9F5C6E6C463D8
+      - name: StableswapPool
+
+  # Avalanche
+  - id: 43114
+    start_block: 38813389
+    contracts:
+      - name: StableswapFactoryNG
+        address:
+          - 0x1764ee18e8B3ccA4787249Ceb249356192594585
+      - name: StableswapPool
