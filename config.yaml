@@ -136,6 +136,7 @@ chains:
       - name: StableswapFactoryNG
         address:
           - 0x6A8cbed756804B16E05E741eDaBd5cB544AE21bf
+        start_block: 18433925
       - name: StableswapPool
 
   # Arbitrum
@@ -149,3 +150,89 @@ chains:
         address:
           - 0x98EE851a00abeE0d95D08cF4CA2BdCE32aeaAF7F
       - name: CryptoPool
+      - name: StableswapFactoryNG
+        address:
+          - 0x9AF14D26075f142eb3F292D5065EB3faa646167b
+        start_block: 144181239
+      - name: StableswapPool
+
+  # Optimism
+  - id: 10
+    start_block: 111362244
+    contracts:
+      - name: StableswapFactoryNG
+        address:
+          - 0x5eeE3091f747E60a045a2E715a4c71e600e31F6E
+      - name: StableswapPool
+
+  # Base
+  - id: 8453
+    start_block: 7886150
+    contracts:
+      - name: StableswapFactoryNG
+        address:
+          - 0xd2002373543Ce3527023C75e7518C274A51ce712
+      - name: StableswapPool
+
+  # Polygon
+  - id: 137
+    start_block: 50625140
+    contracts:
+      - name: StableswapFactoryNG
+        address:
+          - 0x1764ee18e8B3ccA4787249Ceb249356192594585
+      - name: StableswapPool
+
+  # Gnosis (xDai)
+  - id: 100
+    start_block: 30507817
+    contracts:
+      - name: StableswapFactoryNG
+        address:
+          - 0xbC0797015fcFc47d9C1856639CaE50D0e69FbEE8
+      - name: StableswapPool
+
+  # BSC
+  - id: 56
+    start_block: 34487718
+    contracts:
+      - name: StableswapFactoryNG
+        address:
+          - 0xd7E72f3615aa65b92A4DBdC211E296a35512988B
+      - name: StableswapPool
+
+  # Fantom
+  - id: 250
+    start_block: 72534264
+    contracts:
+      - name: StableswapFactoryNG
+        address:
+          - 0xe61Fb97Ef6eBFBa12B36Ffd7be785c1F5A2DE66b
+      - name: StableswapPool
+
+  # Fraxtal
+  - id: 252
+    start_block: 1911424
+    contracts:
+      - name: StableswapFactoryNG
+        address:
+          - 0xd2002373543Ce3527023C75e7518C274A51ce712
+      - name: StableswapPool
+
+  # Sonic
+  - id: 146
+    start_block: 3231331
+    contracts:
+      - name: StableswapFactoryNG
+        address:
+          - 0x7C2085419BE6a04f4ad88ea91bC9F5C6E6C463D8
+      - name: StableswapPool
+
+  # Avalanche
+  - id: 43114
+    start_block: 38813389
+    contracts:
+      - name: StableswapFactoryNG
+        address:
+          - 0x1764ee18e8B3ccA4787249Ceb249356192594585
+      - name: StableswapPool

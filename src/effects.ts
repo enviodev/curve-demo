@@ -1,13 +1,34 @@
 import { createEffect, S } from "envio";
 import type { EvmChainId, EvmOnEventContext } from "envio";
 import { type Chain, createPublicClient, http, parseAbi } from "viem";
-import { mainnet, arbitrum } from "viem/chains";
+import {
+  mainnet,
+  arbitrum,
+  optimism,
+  base,
+  polygon,
+  gnosis,
+  bsc,
+  fantom,
+  fraxtal,
+  sonic,
+  avalanche,
+} from "viem/chains";
 
 // --- Multi-chain RPC via dRPC ---
 
 const DRPC_NETWORKS: Record<number, { chain: Chain; network: string }> = {
   1: { chain: mainnet, network: "ethereum" },
   42161: { chain: arbitrum, network: "arbitrum" },
+  10: { chain: optimism, network: "optimism" },
+  8453: { chain: base, network: "base" },
+  137: { chain: polygon, network: "polygon" },
+  100: { chain: gnosis, network: "gnosis" },
+  56: { chain: bsc, network: "bsc" },
+  250: { chain: fantom, network: "fantom" },
+  252: { chain: fraxtal, network: "fraxtal" },
+  146: { chain: sonic, network: "sonic" },
+  43114: { chain: avalanche, network: "avalanche" },
 };
 
 function makeClient(chainId: number) {
@@ -294,6 +315,16 @@ export const getTokenDecimals = createEffect(
 // Stableswap-NG factory (doubles as registry) per chain.
 export const STABLE_NG_FACTORY: Record<number, string> = {
   1: "0x6A8cbed756804B16E05E741eDaBd5cB544AE21bf",
+  42161: "0x9AF14D26075f142eb3F292D5065EB3faa646167b",
+  10: "0x5eeE3091f747E60a045a2E715a4c71e600e31F6E",
+  8453: "0xd2002373543Ce3527023C75e7518C274A51ce712",
+  137: "0x1764ee18e8B3ccA4787249Ceb249356192594585",
+  100: "0xbC0797015fcFc47d9C1856639CaE50D0e69FbEE8",
+  56: "0xd7E72f3615aa65b92A4DBdC211E296a35512988B",
+  250: "0xe61Fb97Ef6eBFBa12B36Ffd7be785c1F5A2DE66b",
+  252: "0xd2002373543Ce3527023C75e7518C274A51ce712",
+  146: "0x7C2085419BE6a04f4ad88ea91bC9F5C6E6C463D8",
+  43114: "0x1764ee18e8B3ccA4787249Ceb249356192594585",
 };
 
 const stableFactoryAbi = parseAbi([
