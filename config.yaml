@@ -132,7 +132,7 @@ contracts:
 chains:
   # Ethereum Mainnet
   - id: 1
-    start_block: 12500000
+    start_block: 12195812
     contracts:
       - name: TricryptoFactoryNG
         address:
@@ -158,7 +158,6 @@ chains:
       - name: MainRegistry
         address:
           - 0x90E00ACe148ca3b23Ac1bC8C240C2a7Dd9c2d7f5
-        start_block: 12195812
       - name: LegacyStablePool
 
   # Arbitrum
