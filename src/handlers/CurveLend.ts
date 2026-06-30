@@ -69,6 +69,62 @@ indexer.onEvent(
   },
 );
 
+// --- crvUSD mint markets (same engine, different registration factory) ------
+
+const CRVUSD: Record<number, string> = {
+  1: "0xf939e0a03fb07f59a73314e73794be0e57ac1b4e",
+};
+
+indexer.contractRegister(
+  { contract: "CrvUsdControllerFactory", event: "AddMarket" },
+  async ({ event, context }) => {
+    context.chain.LendController.add(event.params.controller);
+    context.chain.LendAMM.add(event.params.amm);
+  },
+);
+
+indexer.onEvent(
+  { contract: "CrvUsdControllerFactory", event: "AddMarket" },
+  async ({ event, context }) => {
+    const chainId = event.chainId;
+    const controller = event.params.controller.toLowerCase();
+    const collateral = event.params.collateral.toLowerCase();
+    const borrowed = CRVUSD[chainId];
+    if (!borrowed) return;
+
+    const [colSym, colDec] = await Promise.all([
+      context.effect(getTokenSymbol, { chainId, address: collateral }),
+      context.effect(getTokenDecimals, { chainId, address: collateral }),
+    ]);
+    await ensureToken(context, chainId, collateral, colSym, colDec, event.block);
+    await ensureToken(context, chainId, borrowed, "crvUSD", 18, event.block);
+
+    context.Market.set({
+      id: `${chainId}_${controller}`,
+      chainId,
+      marketType: "CRVUSD_MINT",
+      controller,
+      amm: event.params.amm.toLowerCase(),
+      vault: undefined,
+      collateralToken_id: tokenId(chainId, collateral),
+      borrowedToken_id: tokenId(chainId, borrowed),
+      monetaryPolicy: event.params.monetary_policy.toLowerCase(),
+      priceOracle: undefined,
+      totalDebt: 0n,
+      totalCollateral: 0n,
+      totalDebtUsd: undefined,
+      totalCollateralUsd: undefined,
+      nLoans: 0,
+      rate: undefined,
+      createdBlock: event.block.number,
+      createdTimestamp: BigInt(event.block.timestamp),
+      createdTxHash: event.transaction.hash,
+      lastUpdatedBlock: event.block.number,
+      lastUpdatedTimestamp: BigInt(event.block.timestamp),
+    });
+  },
+);
+
 // --- Per-user position state (canonical) ------------------------------------
 
 indexer.onEvent(

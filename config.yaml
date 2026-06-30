@@ -163,6 +163,15 @@ contracts:
     events:
       - event: SetRate(uint256 rate, uint256 rate_mul, uint256 time)
 
+  # crvUSD mint markets. ControllerFactory.AddMarket registers the same
+  # Controller + LLAMMA contracts that Curve Lend uses, so the engine is shared.
+  - name: CrvUsdControllerFactory
+    events:
+      - event: AddMarket(address indexed collateral, address controller, address amm, address monetary_policy, uint256 ix)
+        field_selection:
+          transaction_fields:
+            - hash
+
 chains:
   # Ethereum Mainnet
   - id: 1
@@ -199,6 +208,10 @@ chains:
         start_block: 19422666
       - name: LendController
       - name: LendAMM
+      - name: CrvUsdControllerFactory
+        address:
+          - 0xC9332fdCB1C491Dcc683bAe86Fe3cb70360738BC
+        start_block: 17257965
 
   # Arbitrum
   - id: 42161

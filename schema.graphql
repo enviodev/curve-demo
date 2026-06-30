@@ -202,7 +202,7 @@ type Market {
   collateralToken: Token!
   borrowedToken: Token!
   monetaryPolicy: String!
-  priceOracle: String!
+  priceOracle: String
   totalDebt: BigInt!
   totalCollateral: BigInt!
   totalDebtUsd: BigDecimal
