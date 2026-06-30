@@ -1,10 +1,11 @@
-import { indexer, BigDecimal, type Pool } from "envio";
+import { indexer, BigDecimal, type Pool, type EvmChainId } from "envio";
 import {
   STABLE_NG_FACTORY,
   resolveLatestStablePool,
   resolveStablePoolEffect,
   getStablePoolMeta,
   getStablePoolState,
+  getStablePoolStateCached,
   getTokenSymbol,
 } from "../effects.js";
 import { tokenId } from "../constants.js";
@@ -169,49 +170,36 @@ type StableEvent = {
   block: Block;
 };
 
-function dayOf(tsSeconds: number): number {
-  return Math.floor(tsSeconds / 86400);
-}
-
 // Refresh pool state from an event. Balances are event-sourced (cheap, derived
-// from the event's own amounts) on every event; the authoritative on-chain read
-// — which reconciles balances and refreshes A + virtual price — is throttled to
-// once per pool per UTC day. Previously this fired a `balances`/`A`/
-// `get_virtual_price` multicall on EVERY swap and liquidity event, and because
-// the effect cache key included the block number it never hit cache: that RPC
-// storm dominated runtime and exhausted the heap on a full multichain sync.
+// from the event's own amounts) on every event. A + virtual price come from
+// getStablePoolStateCached, which — exactly like the crypto getPoolState path —
+// reads on-chain state ONCE per pool during backfill (block-number-less cache
+// key, reused for every historical event) and per-event only at the head. The
+// previous version refreshed once per pool per UTC day, which on a multi-year
+// multichain backfill still meant (days x pools) historical archive reads.
 async function refreshStableState(
   event: StableEvent,
   context: any,
   pool: Pool,
   deltas: bigint[],
 ): Promise<void> {
-  const needRead =
-    dayOf(Number(event.block.timestamp)) !==
-      dayOf(Number(pool.lastUpdatedTimestamp)) ||
-    pool.balances.length !== pool.nCoins;
-
   let balances: bigint[];
-  let a = pool.a;
-  let virtualPrice = pool.virtualPrice;
-
-  if (needRead) {
-    const state = await context.effect(getStablePoolState, {
-      address: event.srcAddress,
-      chainId: event.chainId,
-      nCoins: pool.nCoins,
-      blockNumber: event.block.number,
-    });
-    balances = state.balances;
-    a = state.a;
-    virtualPrice = state.virtualPrice;
-  } else {
+  if (pool.balances.length === pool.nCoins) {
     balances = pool.balances.slice();
     for (let i = 0; i < deltas.length && i < balances.length; i++) {
       const next = (balances[i] ?? 0n) + deltas[i]!;
       balances[i] = next > 0n ? next : 0n;
     }
+  } else {
+    balances = pool.balances.slice();
   }
+
+  const state = await getStablePoolStateCached(context, {
+    chainId: event.chainId as EvmChainId,
+    address: event.srcAddress,
+    nCoins: pool.nCoins,
+    blockNumber: event.block.number,
+  });
 
   const tokens = await Promise.all(
     pool.coinAddresses.map((addr) =>
@@ -222,8 +210,8 @@ async function refreshStableState(
   context.Pool.set({
     ...pool,
     balances,
-    a,
-    virtualPrice,
+    a: state.a,
+    virtualPrice: state.virtualPrice,
     tvlUsd,
     lastUpdatedBlock: event.block.number,
     lastUpdatedTimestamp: BigInt(event.block.timestamp),

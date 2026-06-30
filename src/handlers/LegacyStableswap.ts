@@ -1,7 +1,8 @@
-import { indexer, BigDecimal, type Pool } from "envio";
+import { indexer, BigDecimal, type Pool, type EvmChainId } from "envio";
 import {
   getLegacyPoolMeta,
   getStablePoolState,
+  getStablePoolStateCached,
   getTokenSymbol,
 } from "../effects.js";
 import { tokenId } from "../constants.js";
@@ -187,10 +188,10 @@ indexer.onEvent(
       logIndex: event.logIndex,
     });
 
-    // Refresh on-chain state and recompute TVL.
-    const state = await context.effect(getStablePoolState, {
+    // Refresh on-chain state and recompute TVL (cached once per pool in backfill).
+    const state = await getStablePoolStateCached(context, {
+      chainId: chainId as EvmChainId,
       address: event.srcAddress,
-      chainId,
       nCoins: pool.nCoins,
       blockNumber: event.block.number,
     });

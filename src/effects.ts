@@ -503,6 +503,7 @@ export const getStablePoolState = createEffect(
       a: S.bigint,
       virtualPrice: S.bigint,
       totalSupply: S.bigint,
+      validAt: S.number,
     }),
     cache: true,
     rateLimit: false,
@@ -540,9 +541,50 @@ export const getStablePoolState = createEffect(
       a: val(input.nCoins),
       virtualPrice: val(input.nCoins + 1),
       totalSupply: val(input.nCoins + 2),
+      validAt:
+        input.blockNumber !== undefined
+          ? input.blockNumber
+          : (chainBackfillEndBlock[input.chainId as EvmChainId] ?? 0),
     };
   },
 );
+
+/**
+ * Wrapper around `getStablePoolState` mirroring `getPoolState`: during backfill
+ * it reads pool state ONCE per pool (no block number in the cache key, so every
+ * historical event reuses it); at the head it reads with an explicit block. A
+ * stale cross-run cache hit (validAt < requested block) re-queries precisely.
+ * Balances are event-sourced in the handler, so in practice this read just keeps
+ * A + virtual price current — but doing it once per pool instead of once per
+ * pool per day is what removes the backfill RPC bottleneck.
+ */
+export async function getStablePoolStateCached(
+  context: EvmOnEventContext,
+  args: {
+    chainId: EvmChainId;
+    address: string;
+    nCoins: number;
+    blockNumber: number;
+  },
+) {
+  const backfillEndBlock = chainBackfillEndBlock[args.chainId] ?? 0;
+  const baseInput = {
+    chainId: args.chainId as number,
+    address: args.address,
+    nCoins: args.nCoins,
+  };
+  if (args.blockNumber < backfillEndBlock) {
+    const result = await context.effect(getStablePoolState, {
+      ...baseInput,
+      blockNumber: undefined,
+    });
+    if (result.validAt >= args.blockNumber) return result;
+  }
+  return await context.effect(getStablePoolState, {
+    ...baseInput,
+    blockNumber: args.blockNumber,
+  });
+}
 
 /**
  * Resolve the pool deployed at `blockNumber` via pool_list(pool_count()-1).
