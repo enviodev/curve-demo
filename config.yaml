@@ -151,7 +151,7 @@ contracts:
 chains:
   # Ethereum Mainnet
   - id: 1
-    start_block: 10647879
+    start_block: 0
     contracts:
       - name: GaugeController
         address:
@@ -160,12 +160,10 @@ chains:
       - name: VotingEscrow
         address:
           - 0x5f3b5DfEb7B28CDbD7FAba78963EE202a494e2A2
-        start_block: 10650387
       - name: FeeDistributor
         address:
           - 0xA464e6DCda8AC41e03616F95f4BC98a13b8922Dc
           - 0xD16d5eC345Dd86Fb63C6a9C43c517210F1027914
-        start_block: 11362396
       - name: TricryptoFactoryNG
         address:
           - 0x0c0e5f2fF0ff18a3be9b835635039256dC4B4963
@@ -185,7 +183,6 @@ chains:
       - name: StableswapFactoryNG
         address:
           - 0x6A8cbed756804B16E05E741eDaBd5cB544AE21bf
-        start_block: 18433925
       - name: StableswapPool
       - name: MainRegistry
         address:
@@ -194,18 +191,15 @@ chains:
       - name: OneWayLendingFactory
         address:
           - 0xea6876dde9e3467564acbee1ed5bac88783205e0
-        start_block: 19422666
       - name: LendController
       - name: LendAMM
       - name: LendVault
       - name: CrvUsdControllerFactory
         address:
           - 0xC9332fdCB1C491Dcc683bAe86Fe3cb70360738BC
-        start_block: 17257965
       - name: ScrvUsdVault
         address:
           - 0x0655977FEb2f289A4aB78af67BAB0d17aAb84367
-        start_block: 21087964
       - name: PegKeeper
         address:
           - 0x9201da0D97CaAAff53f01B2fB56767C7072dE340
@@ -213,11 +207,10 @@ chains:
           - 0x3fA20eAa107DE08B38a8734063D605d5842fe09C
           - 0x338Cb2D827112d989A861cDe87CD9FfD913A1f9D
           - 0x53876B157DeCf04389eEd66c7C29d73863f8C50b
-        start_block: 20300000
 
   # Arbitrum
   - id: 42161
-    start_block: 50000000
+    start_block: 0
     contracts:
       - name: TricryptoFactoryNG
         address:
@@ -229,20 +222,25 @@ chains:
       - name: StableswapFactoryNG
         address:
           - 0x9AF14D26075f142eb3F292D5065EB3faa646167b
-        start_block: 144181239
       - name: StableswapPool
       - name: OneWayLendingFactory
         address:
           - 0xcaEC110C784c9DF37240a8Ce096D352A75922DeA
-        start_block: 193652607
       - name: LendController
       - name: LendAMM
       - name: LendVault
 
   # Optimism
   - id: 10
-    start_block: 111362244
+    start_block: 0
     contracts:
+      - name: TricryptoFactoryNG
+        address:
+          - 0xc6C09471Ee39C7E30a067952FcC89c8922f9Ab53
+      - name: TwocryptoFactoryNG
+        address:
+          - 0x98EE851a00abeE0d95D08cF4CA2BdCE32aeaAF7F
+      - name: CryptoPool
       - name: StableswapFactoryNG
         address:
           - 0x5eeE3091f747E60a045a2E715a4c71e600e31F6E
@@ -250,15 +248,21 @@ chains:
       - name: OneWayLendingFactory
         address:
           - 0x5EA8f3D674C70b020586933A0a5b250734798BeF
-        start_block: 125072267
       - name: LendController
       - name: LendAMM
       - name: LendVault
 
   # Base
   - id: 8453
-    start_block: 7886150
+    start_block: 0
     contracts:
+      - name: TricryptoFactoryNG
+        address:
+          - 0xA5961898870943c68037F6848d2D866Ed2016bcB
+      - name: TwocryptoFactoryNG
+        address:
+          - 0xc9Fe0C63Af9A39402e8a5514f9c43Af0322b665F
+      - name: CryptoPool
       - name: StableswapFactoryNG
         address:
           - 0xd2002373543Ce3527023C75e7518C274A51ce712
@@ -266,8 +270,15 @@ chains:
 
   # Polygon
   - id: 137
-    start_block: 50625140
+    start_block: 0
     contracts:
+      - name: TricryptoFactoryNG
+        address:
+          - 0xC1b393EfEF38140662b91441C6710Aa704973228
+      - name: TwocryptoFactoryNG
+        address:
+          - 0x98EE851a00abeE0d95D08cF4CA2BdCE32aeaAF7F
+      - name: CryptoPool
       - name: StableswapFactoryNG
         address:
           - 0x1764ee18e8B3ccA4787249Ceb249356192594585
@@ -275,8 +286,15 @@ chains:
 
   # Gnosis (xDai)
   - id: 100
-    start_block: 30507817
+    start_block: 0
     contracts:
+      - name: TricryptoFactoryNG
+        address:
+          - 0xb47988ad49dce8d909c6f9cf7b26caf04e1445c8
+      - name: TwocryptoFactoryNG
+        address:
+          - 0x98EE851a00abeE0d95D08cF4CA2BdCE32aeaAF7F
+      - name: CryptoPool
       - name: StableswapFactoryNG
         address:
           - 0xbC0797015fcFc47d9C1856639CaE50D0e69FbEE8
@@ -284,8 +302,15 @@ chains:
 
   # BSC
   - id: 56
-    start_block: 34487718
+    start_block: 0
     contracts:
+      - name: TricryptoFactoryNG
+        address:
+          - 0x38f8D93406fA2d9924DcFcB67dB5B0521Fb20F7D
+      - name: TwocryptoFactoryNG
+        address:
+          - 0x98EE851a00abeE0d95D08cF4CA2BdCE32aeaAF7F
+      - name: CryptoPool
       - name: StableswapFactoryNG
         address:
           - 0xd7E72f3615aa65b92A4DBdC211E296a35512988B
@@ -293,8 +318,12 @@ chains:
 
   # Fantom
   - id: 250
-    start_block: 72534264
+    start_block: 0
     contracts:
+      - name: TwocryptoFactoryNG
+        address:
+          - 0x98EE851a00abeE0d95D08cF4CA2BdCE32aeaAF7F
+      - name: CryptoPool
       - name: StableswapFactoryNG
         address:
           - 0xe61Fb97Ef6eBFBa12B36Ffd7be785c1F5A2DE66b
@@ -302,8 +331,15 @@ chains:
 
   # Fraxtal
   - id: 252
-    start_block: 1911424
+    start_block: 0
     contracts:
+      - name: TricryptoFactoryNG
+        address:
+          - 0xc9Fe0C63Af9A39402e8a5514f9c43Af0322b665F
+      - name: TwocryptoFactoryNG
+        address:
+          - 0x98EE851a00abeE0d95D08cF4CA2BdCE32aeaAF7F
+      - name: CryptoPool
       - name: StableswapFactoryNG
         address:
           - 0xd2002373543Ce3527023C75e7518C274A51ce712
@@ -311,15 +347,21 @@ chains:
       - name: OneWayLendingFactory
         address:
           - 0xf3c9bdAB17B7016fBE3B77D17b1602A7db93ac66
-        start_block: 9466075
       - name: LendController
       - name: LendAMM
       - name: LendVault
 
   # Sonic
   - id: 146
-    start_block: 3231331
+    start_block: 0
     contracts:
+      - name: TricryptoFactoryNG
+        address:
+          - 0x635742dCC8313DCf8c904206037d962c042EAfBd
+      - name: TwocryptoFactoryNG
+        address:
+          - 0x1A83348F9cCFD3Fe1A8C0adBa580Ac4e267Fe495
+      - name: CryptoPool
       - name: StableswapFactoryNG
         address:
           - 0x7C2085419BE6a04f4ad88ea91bC9F5C6E6C463D8
@@ -327,15 +369,21 @@ chains:
       - name: OneWayLendingFactory
         address:
           - 0x30D1859DaD5A52aE03B6e259d1b48c4b12933993
-        start_block: 11208753
       - name: LendController
       - name: LendAMM
       - name: LendVault
 
   # Avalanche
   - id: 43114
-    start_block: 38813389
+    start_block: 0
     contracts:
+      - name: TricryptoFactoryNG
+        address:
+          - 0x3d6cB2F6DcF47CDd9C13E4e3beAe9af041d8796a
+      - name: TwocryptoFactoryNG
+        address:
+          - 0x98EE851a00abeE0d95D08cF4CA2BdCE32aeaAF7F
+      - name: CryptoPool
       - name: StableswapFactoryNG
         address:
           - 0x1764ee18e8B3ccA4787249Ceb249356192594585
