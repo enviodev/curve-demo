@@ -112,6 +112,23 @@ contracts:
           transaction_fields:
             - hash
 
+  # Legacy stableswap — pools are registered via the Main Registry's PoolAdded
+  # (which, unlike the NG factory, carries the pool address). Metadata is read
+  # from the registry; swaps share the int128 TokenExchange signature.
+  - name: MainRegistry
+    events:
+      - event: PoolAdded(address indexed pool, bytes rate_method_id)
+        field_selection:
+          transaction_fields:
+            - hash
+
+  - name: LegacyStablePool
+    events:
+      - event: TokenExchange(address indexed buyer, int128 sold_id, uint256 tokens_sold, int128 bought_id, uint256 tokens_bought)
+        field_selection:
+          transaction_fields:
+            - hash
+
 chains:
   # Ethereum Mainnet
   - id: 1
@@ -138,6 +155,11 @@ chains:
           - 0x6A8cbed756804B16E05E741eDaBd5cB544AE21bf
         start_block: 18433925
       - name: StableswapPool
+      - name: MainRegistry
+        address:
+          - 0x90E00ACe148ca3b23Ac1bC8C240C2a7Dd9c2d7f5
+        start_block: 12195812
+      - name: LegacyStablePool
 
   # Arbitrum
   - id: 42161

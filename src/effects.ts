@@ -47,6 +47,41 @@ function getClient(chainId: number) {
   return c;
 }
 
+type MulticallResult =
+  | { status: "success"; result: unknown }
+  | { status: "failure" };
+
+// A multicall that transparently falls back to individual eth_calls when
+// multicall3 is unavailable — e.g. historical blocks before multicall3 was
+// deployed (Ethereum block 14353601, mid-2022). Always returns allowFailure
+// style { status } entries so a reverted read never throws.
+async function safeMulticall(
+  client: ReturnType<typeof createPublicClient>,
+  contracts: any[],
+  blockNumber?: bigint,
+): Promise<MulticallResult[]> {
+  try {
+    return (await client.multicall({
+      contracts,
+      ...(blockNumber !== undefined ? { blockNumber } : {}),
+      allowFailure: true,
+    })) as MulticallResult[];
+  } catch {
+    return await Promise.all(
+      contracts.map((c) =>
+        (
+          client.readContract({
+            ...c,
+            ...(blockNumber !== undefined ? { blockNumber } : {}),
+          }) as Promise<unknown>
+        )
+          .then((result) => ({ status: "success" as const, result }))
+          .catch(() => ({ status: "failure" as const })),
+      ),
+    );
+  }
+}
+
 // --- ABIs ---
 
 // Single ABI with overloads so viem's multicall can type a heterogeneous batch
@@ -147,14 +182,15 @@ const getPoolStateEffect = createEffect(
             { address, abi: poolAbi, functionName: "price_scale" },
           ];
 
-    const results = await client.multicall({
-      contracts: [...balanceCalls, ...priceCalls],
-      ...(blockNumber !== undefined ? { blockNumber } : {}),
-      allowFailure: false,
-    });
-
-    const balances = results.slice(0, input.nCoins) as bigint[];
-    const priceResults = results.slice(input.nCoins) as bigint[];
+    const results = await safeMulticall(
+      client,
+      [...balanceCalls, ...priceCalls],
+      blockNumber,
+    );
+    const asBig = (r: MulticallResult): bigint =>
+      r && r.status === "success" ? (r.result as bigint) : 0n;
+    const balances = results.slice(0, input.nCoins).map(asBig);
+    const priceResults = results.slice(input.nCoins).map(asBig);
 
     let lastPrices: bigint[];
     let priceScales: bigint[];
@@ -452,19 +488,18 @@ export const getStablePoolState = createEffect(
       functionName: "balances",
       args: [BigInt(i)],
     }));
-    const results = await client.multicall({
-      contracts: [
+    // A freshly-deployed (empty) pool reverts get_virtual_price (D / 0 supply),
+    // and pre-2022 blocks predate multicall3 — safeMulticall tolerates both.
+    const results = await safeMulticall(
+      client,
+      [
         ...balanceCalls,
         { address, abi: stablePoolAbi, functionName: "A" },
         { address, abi: stablePoolAbi, functionName: "get_virtual_price" },
         { address, abi: stablePoolAbi, functionName: "totalSupply" },
       ],
-      ...(blockNumber !== undefined ? { blockNumber } : {}),
-      // A freshly-deployed (empty) pool reverts get_virtual_price (D / 0 supply).
-      // Tolerate any reverted read and fall back to 0n; it repopulates once the
-      // pool has liquidity and we refresh on the next event.
-      allowFailure: true,
-    });
+      blockNumber,
+    );
     const val = (i: number): bigint => {
       const r = results[i];
       return r && r.status === "success" ? (r.result as bigint) : 0n;
@@ -501,5 +536,64 @@ export const resolveStablePoolEffect = createEffect(
       input.blockNumber,
     );
     return addr ?? null;
+  },
+);
+
+// ============================================================
+// Legacy stableswap (registry-listed pools)
+// ============================================================
+
+// Curve Main Registry per chain (hand-deployed legacy pools).
+export const LEGACY_REGISTRY: Record<number, string> = {
+  1: "0x90E00ACe148ca3b23Ac1bC8C240C2a7Dd9c2d7f5",
+};
+
+const legacyRegistryAbi = parseAbi([
+  "function get_coins(address pool) view returns (address[8])",
+  "function get_decimals(address pool) view returns (uint256[8])",
+  "function get_lp_token(address pool) view returns (address)",
+]);
+
+/**
+ * Legacy pool metadata via the Main Registry (coins/decimals) + the pool's
+ * LP token (symbol/name). Legacy pools keep their LP token in a separate
+ * contract, so symbol/name come from there rather than the pool itself.
+ */
+export const getLegacyPoolMeta = createEffect(
+  {
+    name: "getLegacyPoolMeta",
+    input: S.schema({ chainId: S.number, address: S.string }),
+    output: S.schema({
+      coins: S.array(S.string),
+      decimals: S.array(S.number),
+      symbol: S.string,
+      name: S.string,
+    }),
+    cache: true,
+    rateLimit: false,
+  },
+  async ({ input }) => {
+    const client = getClient(input.chainId);
+    const reg = LEGACY_REGISTRY[input.chainId]! as `0x${string}`;
+    const pool = input.address as `0x${string}`;
+    const [coins, decimals, lp] = await Promise.all([
+      client.readContract({ address: reg, abi: legacyRegistryAbi, functionName: "get_coins", args: [pool] }) as Promise<readonly string[]>,
+      client.readContract({ address: reg, abi: legacyRegistryAbi, functionName: "get_decimals", args: [pool] }) as Promise<readonly bigint[]>,
+      (client.readContract({ address: reg, abi: legacyRegistryAbi, functionName: "get_lp_token", args: [pool] }) as Promise<string>).catch(() => ZERO_ADDRESS),
+    ]);
+    const coinList = coins.filter((c) => c.toLowerCase() !== ZERO_ADDRESS);
+    const decList = decimals.slice(0, coinList.length).map((d) => Number(d));
+    let symbol = "";
+    let name = "";
+    if (lp.toLowerCase() !== ZERO_ADDRESS) {
+      symbol = await (client.readContract({ address: lp as `0x${string}`, abi: stablePoolAbi, functionName: "symbol" }) as Promise<string>).catch(() => "");
+      name = await (client.readContract({ address: lp as `0x${string}`, abi: stablePoolAbi, functionName: "name" }) as Promise<string>).catch(() => "");
+    }
+    return {
+      coins: coinList.map((c) => c.toLowerCase()),
+      decimals: decList,
+      symbol,
+      name,
+    };
   },
 );

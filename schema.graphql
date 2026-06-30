@@ -16,6 +16,7 @@ enum PoolType {
   TWOCRYPTO_STANDALONE
   STABLESWAP_NG
   STABLESWAP_NG_META
+  STABLESWAP
 }
 
 enum PriceSource {
