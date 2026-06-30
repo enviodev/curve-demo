@@ -9,6 +9,29 @@ import { ensureToken, toDecimal } from "../pricing.js";
 const SANE_MAX = 2n ** 200n;
 const sane = (x: bigint): bigint => (x >= SANE_MAX ? 0n : x);
 
+// Daily per-market snapshot, keyed by chainId_controller_day. set() overwrites
+// the day's row with the latest market state (last-write-wins per day).
+async function upsertMarketSnapshot(
+  context: any,
+  market: any,
+  block: { number: number; timestamp: number },
+) {
+  const day = Math.floor(block.timestamp / 86400);
+  context.MarketSnapshot.set({
+    id: `${market.chainId}_${market.controller}_${day}`,
+    chainId: market.chainId,
+    market_id: market.id,
+    day,
+    timestamp: BigInt(block.timestamp),
+    blockNumber: block.number,
+    totalDebt: market.totalDebt,
+    totalCollateral: market.totalCollateral,
+    totalDebtUsd: market.totalDebtUsd,
+    nLoans: market.nLoans,
+    rate: market.rate,
+  });
+}
+
 // Curve Lend (one-way lending markets). The OneWayLendingFactory's NewVault
 // event carries every address, so the Controller + LLAMMA AMM are registered
 // directly. The Controller's UserState event is the canonical per-user state
@@ -192,18 +215,33 @@ indexer.onEvent(
       });
     }
 
-    // Maintain market aggregates from the per-user delta.
+    // Maintain market aggregates (and USD totals) from the per-user delta.
     const wasActive = existing?.isActive ?? false;
     const nowActive = !closed;
     const nLoansDelta = (nowActive ? 1 : 0) - (wasActive ? 1 : 0);
-    context.Market.set({
+    const totalDebt = market.totalDebt + (newDebt - oldDebt);
+    const totalCollateral =
+      market.totalCollateral + (newCollateral - oldCollateral);
+    const updatedMarket = {
       ...market,
-      totalDebt: market.totalDebt + (newDebt - oldDebt),
-      totalCollateral: market.totalCollateral + (newCollateral - oldCollateral),
+      totalDebt,
+      totalCollateral,
+      totalDebtUsd:
+        borTok?.usdPrice !== undefined
+          ? toDecimal(totalDebt, borTok.decimals).multipliedBy(borTok.usdPrice)
+          : undefined,
+      totalCollateralUsd:
+        colTok?.usdPrice !== undefined
+          ? toDecimal(totalCollateral, colTok.decimals).multipliedBy(
+              colTok.usdPrice,
+            )
+          : undefined,
       nLoans: market.nLoans + nLoansDelta,
       lastUpdatedBlock: event.block.number,
       lastUpdatedTimestamp: BigInt(event.block.timestamp),
-    });
+    };
+    context.Market.set(updatedMarket);
+    await upsertMarketSnapshot(context, updatedMarket, event.block);
   },
 );
 

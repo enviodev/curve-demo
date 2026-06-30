@@ -217,6 +217,7 @@ type Market {
   loans: [Loan!]! @derivedFrom(field: "market")
   loanEvents: [LoanEvent!]! @derivedFrom(field: "market")
   liquidations: [Liquidation!]! @derivedFrom(field: "market")
+  marketSnapshots: [MarketSnapshot!]! @derivedFrom(field: "market")
 }
 
 type Loan {
@@ -271,4 +272,19 @@ type Liquidation {
   blockNumber: Int!
   timestamp: BigInt! @index
   txHash: String!
+}
+
+# Daily per-market time-series (debt / collateral / loan count / rate).
+type MarketSnapshot {
+  id: ID!
+  chainId: Int!
+  market: Market! @index
+  day: Int! @index
+  timestamp: BigInt!
+  blockNumber: Int!
+  totalDebt: BigInt!
+  totalCollateral: BigInt!
+  totalDebtUsd: BigDecimal
+  nLoans: Int!
+  rate: BigInt
 }
