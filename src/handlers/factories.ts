@@ -12,7 +12,6 @@ type CreatePoolArgs = {
   poolType: Pool["poolType"];
   hasDonations: boolean;
   block: { number: number; timestamp: number };
-  txHash: string;
 };
 
 async function createPool(context: any, args: CreatePoolArgs) {
@@ -66,7 +65,6 @@ async function createPool(context: any, args: CreatePoolArgs) {
     isActive: true,
     deploymentBlock: block.number,
     deploymentTimestamp: BigInt(block.timestamp),
-    deploymentTxHash: args.txHash,
     lastUpdatedBlock: block.number,
     lastUpdatedTimestamp: BigInt(block.timestamp),
   };
@@ -110,7 +108,6 @@ indexer.onEvent(
     poolType: "TRICRYPTO_NG",
     hasDonations: false,
     block: event.block,
-    txHash: event.transaction.hash,
   });
 });
 
@@ -136,7 +133,6 @@ indexer.onEvent(
     poolType: "TWOCRYPTO_NG",
     hasDonations: false,
     block: event.block,
-    txHash: event.transaction.hash,
   });
 });
 
@@ -171,6 +167,5 @@ indexer.onEvent(
     poolType: "CRYPTO_V1",
     hasDonations: false,
     block: event.block,
-    txHash: event.transaction.hash,
   });
 });

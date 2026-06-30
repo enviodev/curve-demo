@@ -56,7 +56,6 @@ async function ensureStablePool(
   chainId: number,
   address: string,
   block: Block,
-  txHash: string,
   context: any,
 ): Promise<Pool | undefined> {
   const poolId = `${chainId}_${address.toLowerCase()}`;
@@ -117,7 +116,6 @@ async function ensureStablePool(
     isActive: true,
     deploymentBlock: block.number,
     deploymentTimestamp: BigInt(block.timestamp),
-    deploymentTxHash: txHash,
     lastUpdatedBlock: block.number,
     lastUpdatedTimestamp: BigInt(block.timestamp),
   };
@@ -149,7 +147,6 @@ async function handleDeploy({ event, context }: any) {
     event.chainId,
     addr,
     event.block,
-    event.transaction.hash,
     context,
   );
 }
@@ -170,7 +167,6 @@ type StableEvent = {
   srcAddress: string;
   logIndex: number;
   block: Block;
-  transaction: { hash: string };
 };
 
 function dayOf(tsSeconds: number): number {
@@ -247,7 +243,6 @@ indexer.onEvent(
       event.chainId,
       event.srcAddress,
       event.block,
-      event.transaction.hash,
       context,
     );
     if (!pool) return;
@@ -302,7 +297,6 @@ indexer.onEvent(
       volumeUsd,
       blockNumber: event.block.number,
       timestamp: BigInt(event.block.timestamp),
-      txHash: event.transaction.hash,
       logIndex: event.logIndex,
     });
 
@@ -355,7 +349,6 @@ async function recordLiquidity(
     event.chainId,
     event.srcAddress,
     event.block,
-    event.transaction.hash,
     context,
   );
   if (!pool) return;
@@ -371,7 +364,6 @@ async function recordLiquidity(
     fee: undefined,
     timestamp: BigInt(event.block.timestamp),
     blockNumber: event.block.number,
-    txHash: event.transaction.hash,
   });
   const sign = kind === "ADD" ? 1n : -1n;
   const deltas = tokenAmounts.map((amt) => amt * sign);

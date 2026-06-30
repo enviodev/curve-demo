@@ -88,7 +88,6 @@ indexer.onEvent(
       rate: undefined,
       createdBlock: event.block.number,
       createdTimestamp: BigInt(event.block.timestamp),
-      createdTxHash: event.transaction.hash,
       lastUpdatedBlock: event.block.number,
       lastUpdatedTimestamp: BigInt(event.block.timestamp),
     });
@@ -146,7 +145,6 @@ indexer.onEvent(
       rate: undefined,
       createdBlock: event.block.number,
       createdTimestamp: BigInt(event.block.timestamp),
-      createdTxHash: event.transaction.hash,
       lastUpdatedBlock: event.block.number,
       lastUpdatedTimestamp: BigInt(event.block.timestamp),
     });
@@ -269,7 +267,6 @@ indexer.onEvent(
       debtChange: event.params.loan_increase,
       blockNumber: event.block.number,
       timestamp: BigInt(event.block.timestamp),
-      txHash: event.transaction.hash,
     });
   },
 );
@@ -287,7 +284,6 @@ indexer.onEvent(
       debtChange: event.params.loan_decrease,
       blockNumber: event.block.number,
       timestamp: BigInt(event.block.timestamp),
-      txHash: event.transaction.hash,
     });
   },
 );
@@ -305,7 +301,6 @@ indexer.onEvent(
       debtChange: 0n,
       blockNumber: event.block.number,
       timestamp: BigInt(event.block.timestamp),
-      txHash: event.transaction.hash,
     });
   },
 );
@@ -330,7 +325,6 @@ indexer.onEvent(
       isSelf: user === liquidator,
       blockNumber: event.block.number,
       timestamp: BigInt(event.block.timestamp),
-      txHash: event.transaction.hash,
     });
     context.LoanEvent.set({
       id: `${loanEventId(event)}_liq`,
@@ -342,7 +336,6 @@ indexer.onEvent(
       debtChange: event.params.debt,
       blockNumber: event.block.number,
       timestamp: BigInt(event.block.timestamp),
-      txHash: event.transaction.hash,
     });
   },
 );
@@ -385,7 +378,6 @@ indexer.onEvent(
       tokensBought: event.params.tokens_bought,
       blockNumber: event.block.number,
       timestamp: BigInt(event.block.timestamp),
-      txHash: event.transaction.hash,
     });
   },
 );
