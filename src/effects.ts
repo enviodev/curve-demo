@@ -286,3 +286,189 @@ export const getTokenDecimals = createEffect(
     }
   },
 );
+
+// ============================================================
+// Stableswap-NG
+// ============================================================
+
+// Stableswap-NG factory (doubles as registry) per chain.
+export const STABLE_NG_FACTORY: Record<number, string> = {
+  1: "0x6A8cbed756804B16E05E741eDaBd5cB544AE21bf",
+};
+
+const stableFactoryAbi = parseAbi([
+  "function pool_count() view returns (uint256)",
+  "function pool_list(uint256 i) view returns (address)",
+  "function get_coins(address pool) view returns (address[])",
+  "function get_decimals(address pool) view returns (uint256[])",
+  "function is_meta(address pool) view returns (bool)",
+]);
+
+const stablePoolAbi = parseAbi([
+  "function A() view returns (uint256)",
+  "function balances(uint256 i) view returns (uint256)",
+  "function get_virtual_price() view returns (uint256)",
+  "function totalSupply() view returns (uint256)",
+  "function symbol() view returns (string)",
+  "function name() view returns (string)",
+]);
+
+/**
+ * Resolve the address of the pool just deployed by a Stableswap-NG factory.
+ * The deploy events (PlainPoolDeployed/MetaPoolDeployed) don't carry the pool
+ * address, so we read pool_list(pool_count()-1) at the deploy block. Called
+ * directly (not via the Effect API) because contractRegister has no effect
+ * caller. NOTE: assumes one deploy per (factory, block); a same-block multi
+ * deploy would resolve every event to the last pool.
+ */
+export async function resolveLatestStablePool(
+  chainId: number,
+  factory: string,
+  blockNumber: number,
+): Promise<string | undefined> {
+  try {
+    const client = getClient(chainId);
+    const f = factory as `0x${string}`;
+    const count = (await client.readContract({
+      address: f,
+      abi: stableFactoryAbi,
+      functionName: "pool_count",
+      blockNumber: BigInt(blockNumber),
+    })) as bigint;
+    if (count === 0n) return undefined;
+    const pool = (await client.readContract({
+      address: f,
+      abi: stableFactoryAbi,
+      functionName: "pool_list",
+      args: [count - 1n],
+      blockNumber: BigInt(blockNumber),
+    })) as string;
+    return pool.toLowerCase();
+  } catch {
+    return undefined;
+  }
+}
+
+const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
+
+/** Pool metadata (coins, decimals, meta flag, symbol/name) via the factory. */
+export const getStablePoolMeta = createEffect(
+  {
+    name: "getStablePoolMeta",
+    input: S.schema({ chainId: S.number, address: S.string }),
+    output: S.schema({
+      coins: S.array(S.string),
+      decimals: S.array(S.number),
+      isMeta: S.boolean,
+      symbol: S.string,
+      name: S.string,
+    }),
+    cache: true,
+    rateLimit: false,
+  },
+  async ({ input }) => {
+    const client = getClient(input.chainId);
+    const factory = STABLE_NG_FACTORY[input.chainId]!;
+    const f = factory as `0x${string}`;
+    const pool = input.address as `0x${string}`;
+    const [coins, decimals, isMeta, symbol, name] = await Promise.all([
+      client.readContract({ address: f, abi: stableFactoryAbi, functionName: "get_coins", args: [pool] }) as Promise<readonly string[]>,
+      client.readContract({ address: f, abi: stableFactoryAbi, functionName: "get_decimals", args: [pool] }) as Promise<readonly bigint[]>,
+      (client.readContract({ address: f, abi: stableFactoryAbi, functionName: "is_meta", args: [pool] }) as Promise<boolean>).catch(() => false),
+      (client.readContract({ address: pool, abi: stablePoolAbi, functionName: "symbol" }) as Promise<string>).catch(() => "???"),
+      (client.readContract({ address: pool, abi: stablePoolAbi, functionName: "name" }) as Promise<string>).catch(() => ""),
+    ]);
+    // get_coins/get_decimals return MAX_COINS-sized arrays padded with zeros.
+    const coinList = coins.filter((c) => c.toLowerCase() !== ZERO_ADDRESS);
+    const decList = decimals.slice(0, coinList.length).map((d) => Number(d));
+    return {
+      coins: coinList.map((c) => c.toLowerCase()),
+      decimals: decList,
+      isMeta,
+      symbol,
+      name,
+    };
+  },
+);
+
+/** Pool state (balances, A, virtual price, LP supply). */
+export const getStablePoolState = createEffect(
+  {
+    name: "getStablePoolState",
+    input: S.tuple((s) => ({
+      address: s.item(0, S.string),
+      chainId: s.item(1, S.number),
+      nCoins: s.item(2, S.number),
+      blockNumber: s.item(3, S.optional(S.number)),
+    })),
+    output: S.schema({
+      balances: S.array(S.bigint),
+      a: S.bigint,
+      virtualPrice: S.bigint,
+      totalSupply: S.bigint,
+    }),
+    cache: true,
+    rateLimit: false,
+  },
+  async ({ input }) => {
+    const client = getClient(input.chainId);
+    const address = input.address as `0x${string}`;
+    const blockNumber =
+      input.blockNumber !== undefined ? BigInt(input.blockNumber) : undefined;
+    const balanceCalls = Array.from({ length: input.nCoins }, (_, i) => ({
+      address,
+      abi: stablePoolAbi,
+      functionName: "balances",
+      args: [BigInt(i)],
+    }));
+    const results = await client.multicall({
+      contracts: [
+        ...balanceCalls,
+        { address, abi: stablePoolAbi, functionName: "A" },
+        { address, abi: stablePoolAbi, functionName: "get_virtual_price" },
+        { address, abi: stablePoolAbi, functionName: "totalSupply" },
+      ],
+      ...(blockNumber !== undefined ? { blockNumber } : {}),
+      // A freshly-deployed (empty) pool reverts get_virtual_price (D / 0 supply).
+      // Tolerate any reverted read and fall back to 0n; it repopulates once the
+      // pool has liquidity and we refresh on the next event.
+      allowFailure: true,
+    });
+    const val = (i: number): bigint => {
+      const r = results[i];
+      return r && r.status === "success" ? (r.result as bigint) : 0n;
+    };
+    const balances = Array.from({ length: input.nCoins }, (_, i) => val(i));
+    return {
+      balances,
+      a: val(input.nCoins),
+      virtualPrice: val(input.nCoins + 1),
+      totalSupply: val(input.nCoins + 2),
+    };
+  },
+);
+
+/**
+ * Resolve the pool deployed at `blockNumber` via pool_list(pool_count()-1).
+ * Effect-wrapped form of resolveLatestStablePool for use inside event handlers
+ * (which double-run in preload and must route RPC through the Effect API).
+ */
+export const resolveStablePoolEffect = createEffect(
+  {
+    name: "resolveStablePool",
+    input: S.schema({ chainId: S.number, blockNumber: S.number }),
+    output: S.union([S.string, null]),
+    cache: true,
+    rateLimit: false,
+  },
+  async ({ input }) => {
+    const factory = STABLE_NG_FACTORY[input.chainId];
+    if (!factory) return null;
+    const addr = await resolveLatestStablePool(
+      input.chainId,
+      factory,
+      input.blockNumber,
+    );
+    return addr ?? null;
+  },
+);

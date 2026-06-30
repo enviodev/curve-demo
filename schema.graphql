@@ -14,6 +14,8 @@ enum PoolType {
   CRYPTO_V1
   TRICRYPTO_LEGACY
   TWOCRYPTO_STANDALONE
+  STABLESWAP_NG
+  STABLESWAP_NG_META
 }
 
 enum PriceSource {
@@ -61,6 +63,11 @@ type Pool {
   coinDecimals: [Int!]!
   lastPrices: [BigInt!]!
   priceScales: [BigInt!]!
+  # Stableswap fields — null for crypto pools
+  a: BigInt
+  virtualPrice: BigInt
+  isMetaPool: Boolean
+  basePool: String
   balances: [BigInt!]!
   totalSwapCount: BigInt!
   totalVolumeUsd: BigDecimal!
@@ -75,6 +82,27 @@ type Pool {
   liquidityEvents: [LiquidityEvent!]! @derivedFrom(field: "pool")
   poolPairs: [PoolPair!]! @derivedFrom(field: "pool")
   poolPrices: [PoolPrice!]! @derivedFrom(field: "pool")
+  swaps: [Swap!]! @derivedFrom(field: "pool")
+}
+
+# General per-swap record. Used by all pool classes (stableswap today; crypto
+# pools also write the richer PoolPrice entity for oracle-based pricing).
+type Swap {
+  id: ID!
+  chainId: Int!
+  pool: Pool! @index
+  buyer: String! @index
+  soldId: Int!
+  boughtId: Int!
+  tokensSold: BigInt!
+  tokensBought: BigInt!
+  tokensSoldDecimal: BigDecimal!
+  tokensBoughtDecimal: BigDecimal!
+  volumeUsd: BigDecimal
+  blockNumber: Int! @index
+  timestamp: BigInt! @index
+  txHash: String!
+  logIndex: Int!
 }
 
 type PoolPair {

@@ -70,6 +70,48 @@ contracts:
           transaction_fields:
             - hash
 
+  # Stableswap-NG factory. Deploy events carry NO pool address, so the address
+  # is resolved in contractRegister via pool_list(pool_count()-1).
+  - name: StableswapFactoryNG
+    events:
+      - event: PlainPoolDeployed(address[] coins, uint256 A, uint256 fee, address deployer)
+        field_selection:
+          transaction_fields:
+            - hash
+      - event: MetaPoolDeployed(address coin, address base_pool, uint256 A, uint256 fee, address deployer)
+        field_selection:
+          transaction_fields:
+            - hash
+
+  # Stableswap-NG pool, registered dynamically by the factory above. Pool
+  # entity is initialized lazily on the first event we see for it.
+  - name: StableswapPool
+    events:
+      - event: TokenExchange(address indexed buyer, int128 sold_id, uint256 tokens_sold, int128 bought_id, uint256 tokens_bought)
+        field_selection:
+          transaction_fields:
+            - hash
+      - event: TokenExchangeUnderlying(address indexed buyer, int128 sold_id, uint256 tokens_sold, int128 bought_id, uint256 tokens_bought)
+        field_selection:
+          transaction_fields:
+            - hash
+      - event: AddLiquidity(address indexed provider, uint256[] token_amounts, uint256[] fees, uint256 invariant, uint256 token_supply)
+        field_selection:
+          transaction_fields:
+            - hash
+      - event: RemoveLiquidity(address indexed provider, uint256[] token_amounts, uint256[] fees, uint256 token_supply)
+        field_selection:
+          transaction_fields:
+            - hash
+      - event: RemoveLiquidityOne(address indexed provider, int128 token_id, uint256 token_amount, uint256 coin_amount, uint256 token_supply)
+        field_selection:
+          transaction_fields:
+            - hash
+      - event: RemoveLiquidityImbalance(address indexed provider, uint256[] token_amounts, uint256[] fees, uint256 invariant, uint256 token_supply)
+        field_selection:
+          transaction_fields:
+            - hash
+
 chains:
   # Ethereum Mainnet
   - id: 1
@@ -91,6 +133,10 @@ chains:
         address:
           - 0xd51a44d3fae010294c616388b506acda1bfaae46
       - name: CryptoPool
+      - name: StableswapFactoryNG
+        address:
+          - 0x6A8cbed756804B16E05E741eDaBd5cB544AE21bf
+      - name: StableswapPool
 
   # Arbitrum
   - id: 42161
