@@ -173,28 +173,61 @@ type StableEvent = {
   transaction: { hash: string };
 };
 
+function dayOf(tsSeconds: number): number {
+  return Math.floor(tsSeconds / 86400);
+}
+
+// Refresh pool state from an event. Balances are event-sourced (cheap, derived
+// from the event's own amounts) on every event; the authoritative on-chain read
+// — which reconciles balances and refreshes A + virtual price — is throttled to
+// once per pool per UTC day. Previously this fired a `balances`/`A`/
+// `get_virtual_price` multicall on EVERY swap and liquidity event, and because
+// the effect cache key included the block number it never hit cache: that RPC
+// storm dominated runtime and exhausted the heap on a full multichain sync.
 async function refreshStableState(
   event: StableEvent,
   context: any,
   pool: Pool,
+  deltas: bigint[],
 ): Promise<void> {
-  const state = await context.effect(getStablePoolState, {
-    address: event.srcAddress,
-    chainId: event.chainId,
-    nCoins: pool.nCoins,
-    blockNumber: event.block.number,
-  });
+  const needRead =
+    dayOf(Number(event.block.timestamp)) !==
+      dayOf(Number(pool.lastUpdatedTimestamp)) ||
+    pool.balances.length !== pool.nCoins;
+
+  let balances: bigint[];
+  let a = pool.a;
+  let virtualPrice = pool.virtualPrice;
+
+  if (needRead) {
+    const state = await context.effect(getStablePoolState, {
+      address: event.srcAddress,
+      chainId: event.chainId,
+      nCoins: pool.nCoins,
+      blockNumber: event.block.number,
+    });
+    balances = state.balances;
+    a = state.a;
+    virtualPrice = state.virtualPrice;
+  } else {
+    balances = pool.balances.slice();
+    for (let i = 0; i < deltas.length && i < balances.length; i++) {
+      const next = (balances[i] ?? 0n) + deltas[i]!;
+      balances[i] = next > 0n ? next : 0n;
+    }
+  }
+
   const tokens = await Promise.all(
     pool.coinAddresses.map((addr) =>
       context.Token.get(tokenId(event.chainId, addr)),
     ),
   );
-  const tvlUsd = computeTvlUsd({ ...pool, balances: state.balances }, tokens);
+  const tvlUsd = computeTvlUsd({ ...pool, balances }, tokens);
   context.Pool.set({
     ...pool,
-    balances: state.balances,
-    a: state.a,
-    virtualPrice: state.virtualPrice,
+    balances,
+    a,
+    virtualPrice,
     tvlUsd,
     lastUpdatedBlock: event.block.number,
     lastUpdatedTimestamp: BigInt(event.block.timestamp),
@@ -273,7 +306,12 @@ indexer.onEvent(
       logIndex: event.logIndex,
     });
 
-    await refreshStableState(event, context, pool);
+    const deltas = Array(pool.nCoins).fill(0n) as bigint[];
+    if (soldIdx >= 0 && soldIdx < deltas.length)
+      deltas[soldIdx] = deltas[soldIdx]! + event.params.tokens_sold;
+    if (boughtIdx >= 0 && boughtIdx < deltas.length)
+      deltas[boughtIdx] = deltas[boughtIdx]! - event.params.tokens_bought;
+    await refreshStableState(event, context, pool, deltas);
 
     const updated = await context.Pool.get(pool.id);
     const swapVol = volumeUsd ?? ZERO;
@@ -335,7 +373,9 @@ async function recordLiquidity(
     blockNumber: event.block.number,
     txHash: event.transaction.hash,
   });
-  await refreshStableState(event, context, pool);
+  const sign = kind === "ADD" ? 1n : -1n;
+  const deltas = tokenAmounts.map((amt) => amt * sign);
+  await refreshStableState(event, context, pool, deltas);
   const refreshed = await context.Pool.get(pool.id);
   if (refreshed) {
     await upsertDailySnapshot(context, refreshed, event.block, ZERO, 0);

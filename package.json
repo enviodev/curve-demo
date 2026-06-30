@@ -4,8 +4,8 @@
   "type": "module",
   "scripts": {
     "codegen": "envio codegen",
-    "dev": "envio dev",
-    "start": "envio start",
+    "dev": "ENVIO_INDEXING_MAX_BUFFER_SIZE=50000 envio dev",
+    "start": "ENVIO_INDEXING_MAX_BUFFER_SIZE=50000 envio start",
     "test": "vitest run"
   },
   "devDependencies": {
