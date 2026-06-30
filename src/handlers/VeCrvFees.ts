@@ -134,7 +134,6 @@ indexer.onEvent(
       epoch: event.params.claim_epoch,
       blockNumber: event.block.number,
       timestamp: BigInt(event.block.timestamp),
-      txHash: event.transaction.hash,
     });
   },
 );

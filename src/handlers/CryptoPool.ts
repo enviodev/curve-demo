@@ -98,7 +98,6 @@ indexer.onEvent(
     price: pricing.price,
     blockNumber: event.block.number,
     timestamp: BigInt(event.block.timestamp),
-    txHash: event.transaction.hash,
     logIndex: event.logIndex,
     isRelevant,
     buyer: event.params.buyer,

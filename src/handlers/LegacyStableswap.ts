@@ -32,7 +32,6 @@ async function ensureLegacyPool(
   chainId: number,
   address: string,
   block: Block,
-  txHash: string,
   context: any,
 ): Promise<Pool | undefined> {
   const poolId = `${chainId}_${address.toLowerCase()}`;
@@ -93,7 +92,6 @@ async function ensureLegacyPool(
     isActive: true,
     deploymentBlock: block.number,
     deploymentTimestamp: BigInt(block.timestamp),
-    deploymentTxHash: txHash,
     lastUpdatedBlock: block.number,
     lastUpdatedTimestamp: BigInt(block.timestamp),
   };
@@ -122,7 +120,6 @@ indexer.onEvent(
       event.chainId,
       event.params.pool,
       event.block,
-      event.transaction.hash,
       context,
     );
   },
@@ -135,7 +132,6 @@ indexer.onEvent(
       event.chainId,
       event.srcAddress,
       event.block,
-      event.transaction.hash,
       context,
     );
     if (!pool) return;
@@ -188,7 +184,6 @@ indexer.onEvent(
       volumeUsd,
       blockNumber: event.block.number,
       timestamp: BigInt(event.block.timestamp),
-      txHash: event.transaction.hash,
       logIndex: event.logIndex,
     });
 

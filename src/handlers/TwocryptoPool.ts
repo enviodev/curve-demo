@@ -25,7 +25,6 @@ type EventLike = {
   srcAddress: string;
   logIndex: number;
   block: { number: number; timestamp: number };
-  transaction: { hash: string };
 };
 
 async function ensurePool(event: EventLike, context: any): Promise<Pool> {
@@ -90,7 +89,6 @@ async function ensurePool(event: EventLike, context: any): Promise<Pool> {
     isActive: true,
     deploymentBlock: event.block.number,
     deploymentTimestamp: BigInt(event.block.timestamp),
-    deploymentTxHash: event.transaction.hash,
     lastUpdatedBlock: event.block.number,
     lastUpdatedTimestamp: BigInt(event.block.timestamp),
   };
@@ -226,7 +224,6 @@ indexer.onEvent(
     price: pricing.price,
     blockNumber: event.block.number,
     timestamp: BigInt(event.block.timestamp),
-    txHash: event.transaction.hash,
     logIndex: event.logIndex,
     isRelevant:
       pricing.usdMainVolume !== undefined ||
@@ -299,7 +296,6 @@ indexer.onEvent(
     fee: event.params.fee,
     timestamp: BigInt(event.block.timestamp),
     blockNumber: event.block.number,
-    txHash: event.transaction.hash,
   });
 
   await refreshPoolState(event, context, pool);
@@ -322,7 +318,6 @@ indexer.onEvent(
     fee: undefined,
     timestamp: BigInt(event.block.timestamp),
     blockNumber: event.block.number,
-    txHash: event.transaction.hash,
   });
 
   await refreshPoolState(event, context, pool);
@@ -345,7 +340,6 @@ indexer.onEvent(
     fee: undefined,
     timestamp: BigInt(event.block.timestamp),
     blockNumber: event.block.number,
-    txHash: event.transaction.hash,
   });
 
   await refreshPoolState(event, context, pool);
@@ -374,7 +368,6 @@ indexer.onEvent(
     fee: event.params.approx_fee,
     timestamp: BigInt(event.block.timestamp),
     blockNumber: event.block.number,
-    txHash: event.transaction.hash,
   });
 
   await refreshPoolState(event, context, pool);
@@ -397,7 +390,6 @@ indexer.onEvent(
     fee: event.params.approx_fee,
     timestamp: BigInt(event.block.timestamp),
     blockNumber: event.block.number,
-    txHash: event.transaction.hash,
   });
 
   await refreshPoolState(event, context, pool);

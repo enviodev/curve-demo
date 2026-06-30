@@ -65,7 +65,6 @@ indexer.onEvent(
       votedAt: event.params.time,
       timestamp: BigInt(event.block.timestamp),
       blockNumber: event.block.number,
-      txHash: event.transaction.hash,
     });
   },
 );

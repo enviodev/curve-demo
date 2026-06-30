@@ -77,7 +77,6 @@ type Pool {
   isActive: Boolean!
   deploymentBlock: Int!
   deploymentTimestamp: BigInt!
-  deploymentTxHash: String!
   lastUpdatedBlock: Int!
   lastUpdatedTimestamp: BigInt!
   liquidityEvents: [LiquidityEvent!]! @derivedFrom(field: "pool")
@@ -103,7 +102,6 @@ type Swap {
   volumeUsd: BigDecimal
   blockNumber: Int! @index
   timestamp: BigInt! @index
-  txHash: String!
   logIndex: Int!
 }
 
@@ -145,7 +143,6 @@ type PoolPrice {
   price: BigDecimal!
   blockNumber: Int! @index
   timestamp: BigInt! @index
-  txHash: String!
   logIndex: Int
   isRelevant: Boolean!
   buyer: String! @index
@@ -177,7 +174,6 @@ type LiquidityEvent {
   fee: BigInt
   timestamp: BigInt! @index
   blockNumber: Int!
-  txHash: String!
 }
 
 # =========================================================================
@@ -213,7 +209,6 @@ type Market {
   rate: BigInt
   createdBlock: Int!
   createdTimestamp: BigInt!
-  createdTxHash: String!
   lastUpdatedBlock: Int!
   lastUpdatedTimestamp: BigInt!
   loans: [Loan!]! @derivedFrom(field: "market")
@@ -293,7 +288,6 @@ type GaugeVote {
   votedAt: BigInt!
   timestamp: BigInt! @index
   blockNumber: Int!
-  txHash: String!
 }
 
 # =========================================================================
@@ -342,7 +336,6 @@ type FeeClaim {
   epoch: BigInt!
   blockNumber: Int!
   timestamp: BigInt! @index
-  txHash: String!
 }
 
 type Loan {
@@ -381,7 +374,6 @@ type LoanEvent {
   debtChange: BigInt!
   blockNumber: Int!
   timestamp: BigInt! @index
-  txHash: String!
 }
 
 type Liquidation {
@@ -396,7 +388,6 @@ type Liquidation {
   isSelf: Boolean!
   blockNumber: Int!
   timestamp: BigInt! @index
-  txHash: String!
 }
 
 # Daily per-market time-series (debt / collateral / loan count / rate).
@@ -427,7 +418,6 @@ type AmmSwap {
   tokensBought: BigInt!
   blockNumber: Int!
   timestamp: BigInt! @index
-  txHash: String!
 }
 
 # =========================================================================
@@ -467,5 +457,4 @@ type PegKeeperAction {
   pegPrice: BigDecimal
   blockNumber: Int!
   timestamp: BigInt! @index
-  txHash: String!
 }

@@ -68,7 +68,6 @@ async function recordAction(
     pegPrice,
     blockNumber: event.block.number,
     timestamp: BigInt(event.block.timestamp),
-    txHash: event.transaction.hash,
   });
 }
 
