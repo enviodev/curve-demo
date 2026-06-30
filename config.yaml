@@ -129,6 +129,40 @@ contracts:
           transaction_fields:
             - hash
 
+  # Curve Lend (one-way lending markets). NewVault carries every address, so
+  # controller/amm/vault are registered with no RPC resolution. The Controller
+  # + LLAMMA design is shared with the crvUSD mint markets.
+  - name: OneWayLendingFactory
+    events:
+      - event: NewVault(uint256 indexed id, address indexed collateral_token, address indexed borrowed_token, address vault, address controller, address amm, address price_oracle, address monetary_policy)
+        field_selection:
+          transaction_fields:
+            - hash
+
+  - name: LendController
+    events:
+      - event: UserState(address indexed user, uint256 collateral, uint256 debt, int256 n1, int256 n2, uint256 liquidation_discount)
+      - event: Borrow(address indexed user, uint256 collateral_increase, uint256 loan_increase)
+        field_selection:
+          transaction_fields:
+            - hash
+      - event: Repay(address indexed user, uint256 collateral_decrease, uint256 loan_decrease)
+        field_selection:
+          transaction_fields:
+            - hash
+      - event: RemoveCollateral(address indexed user, uint256 collateral_decrease)
+        field_selection:
+          transaction_fields:
+            - hash
+      - event: Liquidate(address indexed liquidator, address indexed user, uint256 collateral_received, uint256 stablecoin_received, uint256 debt)
+        field_selection:
+          transaction_fields:
+            - hash
+
+  - name: LendAMM
+    events:
+      - event: SetRate(uint256 rate, uint256 rate_mul, uint256 time)
+
 chains:
   # Ethereum Mainnet
   - id: 1
@@ -159,6 +193,12 @@ chains:
         address:
           - 0x90E00ACe148ca3b23Ac1bC8C240C2a7Dd9c2d7f5
       - name: LegacyStablePool
+      - name: OneWayLendingFactory
+        address:
+          - 0xea6876dde9e3467564acbee1ed5bac88783205e0
+        start_block: 19422666
+      - name: LendController
+      - name: LendAMM
 
   # Arbitrum
   - id: 42161
