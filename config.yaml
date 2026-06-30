@@ -229,6 +229,12 @@ chains:
           - 0x9AF14D26075f142eb3F292D5065EB3faa646167b
         start_block: 144181239
       - name: StableswapPool
+      - name: OneWayLendingFactory
+        address:
+          - 0xcaEC110C784c9DF37240a8Ce096D352A75922DeA
+        start_block: 193652607
+      - name: LendController
+      - name: LendAMM
 
   # Optimism
   - id: 10
@@ -238,6 +244,12 @@ chains:
         address:
           - 0x5eeE3091f747E60a045a2E715a4c71e600e31F6E
       - name: StableswapPool
+      - name: OneWayLendingFactory
+        address:
+          - 0x5EA8f3D674C70b020586933A0a5b250734798BeF
+        start_block: 125072267
+      - name: LendController
+      - name: LendAMM
 
   # Base
   - id: 8453
@@ -292,6 +304,12 @@ chains:
         address:
           - 0xd2002373543Ce3527023C75e7518C274A51ce712
       - name: StableswapPool
+      - name: OneWayLendingFactory
+        address:
+          - 0xf3c9bdAB17B7016fBE3B77D17b1602A7db93ac66
+        start_block: 9466075
+      - name: LendController
+      - name: LendAMM
 
   # Sonic
   - id: 146
@@ -301,6 +319,12 @@ chains:
         address:
           - 0x7C2085419BE6a04f4ad88ea91bC9F5C6E6C463D8
       - name: StableswapPool
+      - name: OneWayLendingFactory
+        address:
+          - 0x30D1859DaD5A52aE03B6e259d1b48c4b12933993
+        start_block: 11208753
+      - name: LendController
+      - name: LendAMM
 
   # Avalanche
   - id: 43114
