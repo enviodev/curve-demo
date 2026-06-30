@@ -162,6 +162,10 @@ contracts:
   - name: LendAMM
     events:
       - event: SetRate(uint256 rate, uint256 rate_mul, uint256 time)
+      - event: TokenExchange(address indexed buyer, uint256 sold_id, uint256 tokens_sold, uint256 bought_id, uint256 tokens_bought)
+        field_selection:
+          transaction_fields:
+            - hash
 
   - name: LendVault
     events:
@@ -241,6 +245,22 @@ contracts:
           transaction_fields:
             - hash
 
+  # crvUSD PegKeepers (v2) — peg-defense reserves (discovered via Regulator).
+  - name: PegKeeper
+    events:
+      - event: Provide(uint256 amount)
+        field_selection:
+          transaction_fields:
+            - hash
+      - event: Withdraw(uint256 amount)
+        field_selection:
+          transaction_fields:
+            - hash
+      - event: Profit(uint256 lp_amount)
+        field_selection:
+          transaction_fields:
+            - hash
+
 chains:
   # Ethereum Mainnet
   - id: 1
@@ -299,6 +319,14 @@ chains:
         address:
           - 0x0655977FEb2f289A4aB78af67BAB0d17aAb84367
         start_block: 21087964
+      - name: PegKeeper
+        address:
+          - 0x9201da0D97CaAAff53f01B2fB56767C7072dE340
+          - 0xFb726F57d251aB5C731E5C64eD4F5F94351eF9F3
+          - 0x3fA20eAa107DE08B38a8734063D605d5842fe09C
+          - 0x338Cb2D827112d989A861cDe87CD9FfD913A1f9D
+          - 0x53876B157DeCf04389eEd66c7C29d73863f8C50b
+        start_block: 20300000
 
   # Arbitrum
   - id: 42161
