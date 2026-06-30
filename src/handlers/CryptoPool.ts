@@ -1,4 +1,4 @@
-import { CryptoPool, type EvmChainId, type PoolPrice } from "generated";
+import { indexer, type EvmChainId, type PoolPrice } from "envio";
 import { getPoolState } from "../effects.js";
 import { tokenId } from "../constants.js";
 import {
@@ -8,7 +8,9 @@ import {
   pairIdForSwap,
 } from "../pricing.js";
 
-CryptoPool.TokenExchange.handler(async ({ event, context }) => {
+indexer.onEvent(
+  { contract: "CryptoPool", event: "TokenExchange" },
+  async ({ event, context }) => {
   const chainId = event.chainId;
   const poolId = `${chainId}_${event.srcAddress.toLowerCase()}`;
   const pool = await context.Pool.get(poolId);

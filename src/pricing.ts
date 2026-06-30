@@ -1,4 +1,4 @@
-import { BigDecimal, type Token, type Pool, type PoolPair } from "generated";
+import { BigDecimal, type Token, type Pool, type PoolPair } from "envio";
 import { isStablecoin, tokenId } from "./constants.js";
 
 // A precomputed $1 used for stablecoins. bignumber.js is immutable so we can

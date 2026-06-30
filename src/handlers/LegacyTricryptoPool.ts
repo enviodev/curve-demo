@@ -1,4 +1,4 @@
-import { LegacyTricryptoPool, type EvmChainId, type Pool, type PoolPrice } from "generated";
+import { indexer, type EvmChainId, type Pool, type PoolPrice } from "envio";
 import {
   getPoolState,
   getPoolCoins,
@@ -112,7 +112,9 @@ async function ensurePool(event: EventLike, context: any): Promise<Pool> {
   return pool;
 }
 
-LegacyTricryptoPool.TokenExchange.handler(async ({ event, context }) => {
+indexer.onEvent(
+  { contract: "LegacyTricryptoPool", event: "TokenExchange" },
+  async ({ event, context }) => {
   const pool = await ensurePool(event, context);
   const chainId = event.chainId;
   const poolId = pool.id;

@@ -1,0 +1,3 @@
+# Ephemeral codegen output. Add other .envio entries here as needed.
+types.d.ts
+cache/

@@ -1,5 +1,5 @@
 import { createEffect, S } from "envio";
-import type { EvmChainId, HandlerContext } from "generated";
+import type { EvmChainId, EvmOnEventContext } from "envio";
 import { type Chain, createPublicClient, http, parseAbi } from "viem";
 import { mainnet, arbitrum } from "viem/chains";
 
@@ -55,8 +55,16 @@ export const chainBackfillEndBlock = Object.fromEntries(
   await Promise.all(
     Object.keys(DRPC_NETWORKS).map(async (id) => {
       const chainId = Number(id);
-      const head = await getClient(chainId).getBlockNumber();
-      return [chainId, Number(head) - 200];
+      try {
+        const head = await getClient(chainId).getBlockNumber();
+        return [chainId, Number(head) - 200];
+      } catch {
+        // RPC unavailable at startup (missing/invalid ENVIO_DRPC_API_KEY or a
+        // transient outage). Fall back to 0 so handler modules still load —
+        // this disables the backfill read-through cache (getPoolState then
+        // always queries at an explicit block) but keeps results correct.
+        return [chainId, 0];
+      }
     }),
   ),
 ) as Record<EvmChainId, number>;
@@ -160,7 +168,7 @@ const getPoolStateEffect = createEffect(
  *    during backfill and a later run is now indexing past that point.
  */
 export async function getPoolState(
-  context: HandlerContext,
+  context: EvmOnEventContext,
   args: {
     chainId: EvmChainId;
     address: string;

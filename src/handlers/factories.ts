@@ -1,9 +1,4 @@
-import {
-  TricryptoFactoryNG,
-  TwocryptoFactoryNG,
-  TwocryptoFactoryV1,
-  type Pool,
-} from "generated";
+import { indexer, type Pool } from "envio";
 import { getTokenSymbol, getTokenDecimals } from "../effects.js";
 import { ZERO, ensureAllPoolPairs, ensureToken } from "../pricing.js";
 
@@ -91,13 +86,16 @@ async function createPool(context: any, args: CreatePoolArgs) {
 
 // --- Tricrypto Factory NG (3-coin pools) ---
 
-TricryptoFactoryNG.TricryptoPoolDeployed.contractRegister(
-  ({ event, context }) => {
-    context.addCryptoPool(event.params.pool);
+indexer.contractRegister(
+  { contract: "TricryptoFactoryNG", event: "TricryptoPoolDeployed" },
+  async ({ event, context }) => {
+    context.chain.CryptoPool.add(event.params.pool);
   },
 );
 
-TricryptoFactoryNG.TricryptoPoolDeployed.handler(async ({ event, context }) => {
+indexer.onEvent(
+  { contract: "TricryptoFactoryNG", event: "TricryptoPoolDeployed" },
+  async ({ event, context }) => {
   await createPool(context, {
     chainId: event.chainId,
     poolAddress: event.params.pool,
@@ -114,13 +112,16 @@ TricryptoFactoryNG.TricryptoPoolDeployed.handler(async ({ event, context }) => {
 
 // --- Twocrypto Factory NG (2-coin pools) ---
 
-TwocryptoFactoryNG.TwocryptoPoolDeployed.contractRegister(
-  ({ event, context }) => {
-    context.addCryptoPool(event.params.pool);
+indexer.contractRegister(
+  { contract: "TwocryptoFactoryNG", event: "TwocryptoPoolDeployed" },
+  async ({ event, context }) => {
+    context.chain.CryptoPool.add(event.params.pool);
   },
 );
 
-TwocryptoFactoryNG.TwocryptoPoolDeployed.handler(async ({ event, context }) => {
+indexer.onEvent(
+  { contract: "TwocryptoFactoryNG", event: "TwocryptoPoolDeployed" },
+  async ({ event, context }) => {
   await createPool(context, {
     chainId: event.chainId,
     poolAddress: event.params.pool,
@@ -141,13 +142,16 @@ TwocryptoFactoryNG.TwocryptoPoolDeployed.handler(async ({ event, context }) => {
 // and LP token share the same contract). No name/symbol in the event, so we
 // fetch the ERC20 symbol via RPC and reuse it as the pool name.
 
-TwocryptoFactoryV1.CryptoPoolDeployed.contractRegister(
-  ({ event, context }) => {
-    context.addCryptoPool(event.params.token);
+indexer.contractRegister(
+  { contract: "TwocryptoFactoryV1", event: "CryptoPoolDeployed" },
+  async ({ event, context }) => {
+    context.chain.CryptoPool.add(event.params.token);
   },
 );
 
-TwocryptoFactoryV1.CryptoPoolDeployed.handler(async ({ event, context }) => {
+indexer.onEvent(
+  { contract: "TwocryptoFactoryV1", event: "CryptoPoolDeployed" },
+  async ({ event, context }) => {
   const symbol = (await context.effect(getTokenSymbol, {
     chainId: event.chainId,
     address: event.params.token,

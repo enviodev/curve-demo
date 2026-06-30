@@ -1,4 +1,4 @@
-import { TwocryptoPool, type EvmChainId, type Pool, type PoolPrice } from "generated";
+import { indexer, type EvmChainId, type Pool, type PoolPrice } from "envio";
 import {
   getPoolState,
   getPoolCoins,
@@ -144,7 +144,9 @@ async function refreshPoolState(
 
 // --- Swap event ---
 
-TwocryptoPool.TokenExchange.handler(async ({ event, context }) => {
+indexer.onEvent(
+  { contract: "TwocryptoPool", event: "TokenExchange" },
+  async ({ event, context }) => {
   const pool = await ensurePool(event, context);
   const chainId = event.chainId;
   const poolId = pool.id;
@@ -276,7 +278,9 @@ function liquidityEventId(event: EventLike) {
   return `${event.chainId}_${event.block.number}_${event.logIndex}`;
 }
 
-TwocryptoPool.AddLiquidity.handler(async ({ event, context }) => {
+indexer.onEvent(
+  { contract: "TwocryptoPool", event: "AddLiquidity" },
+  async ({ event, context }) => {
   const pool = await ensurePool(event, context);
 
   context.LiquidityEvent.set({
@@ -297,7 +301,9 @@ TwocryptoPool.AddLiquidity.handler(async ({ event, context }) => {
   await refreshPoolState(event, context, pool);
 });
 
-TwocryptoPool.Donation.handler(async ({ event, context }) => {
+indexer.onEvent(
+  { contract: "TwocryptoPool", event: "Donation" },
+  async ({ event, context }) => {
   const pool = await ensurePool(event, context);
 
   context.LiquidityEvent.set({
@@ -318,7 +324,9 @@ TwocryptoPool.Donation.handler(async ({ event, context }) => {
   await refreshPoolState(event, context, pool);
 });
 
-TwocryptoPool.RemoveLiquidity.handler(async ({ event, context }) => {
+indexer.onEvent(
+  { contract: "TwocryptoPool", event: "RemoveLiquidity" },
+  async ({ event, context }) => {
   const pool = await ensurePool(event, context);
 
   context.LiquidityEvent.set({
@@ -339,7 +347,9 @@ TwocryptoPool.RemoveLiquidity.handler(async ({ event, context }) => {
   await refreshPoolState(event, context, pool);
 });
 
-TwocryptoPool.RemoveLiquidityOne.handler(async ({ event, context }) => {
+indexer.onEvent(
+  { contract: "TwocryptoPool", event: "RemoveLiquidityOne" },
+  async ({ event, context }) => {
   const pool = await ensurePool(event, context);
   const coinIndex = Number(event.params.coin_index);
 
@@ -366,7 +376,9 @@ TwocryptoPool.RemoveLiquidityOne.handler(async ({ event, context }) => {
   await refreshPoolState(event, context, pool);
 });
 
-TwocryptoPool.RemoveLiquidityImbalance.handler(async ({ event, context }) => {
+indexer.onEvent(
+  { contract: "TwocryptoPool", event: "RemoveLiquidityImbalance" },
+  async ({ event, context }) => {
   const pool = await ensurePool(event, context);
 
   context.LiquidityEvent.set({
