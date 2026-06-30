@@ -1,20 +1,17 @@
 # yaml-language-server: $schema=./node_modules/envio/evm.schema.json
 name: curve-crypto-pools
 
-# Storage backends. Every entity is written to BOTH Postgres (serves the GraphQL
-# API) and ClickHouse (columnar store for analytics). Both backends are marked
-# `default: true` so all entities without an explicit @storage directive land in
-# both — note that enabling ClickHouse flips Postgres's implicit default to false,
-# so Postgres must be set explicitly here. Per-entity routing is also possible via
-# an `@storage` directive in schema.graphql; omitted because we want full coverage.
-# ClickHouse connection is read from .env:
-#   ENVIO_CLICKHOUSE_HOST, ENVIO_CLICKHOUSE_DATABASE,
-#   ENVIO_CLICKHOUSE_USERNAME, ENVIO_CLICKHOUSE_PASSWORD
+# Storage backends. Postgres serves the GraphQL API (via Hasura).
+#
+# ClickHouse dual-write is temporarily disabled — uncomment the `clickhouse`
+# block below and set ENVIO_CLICKHOUSE_HOST / _DATABASE / _USERNAME / _PASSWORD
+# in .env to re-enable the columnar analytics store. (When ClickHouse is on,
+# Postgres's implicit default flips to false, which is why it is set explicitly.)
 storage:
   postgres:
     default: true
-  clickhouse:
-    default: true
+  # clickhouse:
+  #   default: true
 
 contracts:
   - name: TricryptoFactoryNG
