@@ -295,6 +295,55 @@ type GaugeVote {
   txHash: String!
 }
 
+# =========================================================================
+# veCRV vote-escrow (locks) + fee distribution (protocol revenue to lockers).
+# =========================================================================
+
+type Lock {
+  id: ID!
+  chainId: Int!
+  user: String! @index
+  lockedAmount: BigInt!
+  unlockTime: BigInt!
+  isActive: Boolean!
+  createdBlock: Int!
+  createdTimestamp: BigInt!
+  lastUpdatedBlock: Int!
+  lastUpdatedTimestamp: BigInt!
+}
+
+type VeCrvState {
+  id: ID!
+  chainId: Int!
+  totalLocked: BigInt!
+  lockCount: Int!
+  lastUpdatedBlock: Int!
+  lastUpdatedTimestamp: BigInt!
+}
+
+type FeeDistribution {
+  id: ID!
+  chainId: Int!
+  distributor: String! @index
+  token: String!
+  weekTime: BigInt!
+  tokens: BigInt!
+  blockNumber: Int!
+  timestamp: BigInt! @index
+}
+
+type FeeClaim {
+  id: ID!
+  chainId: Int!
+  distributor: String! @index
+  recipient: String! @index
+  amount: BigInt!
+  epoch: BigInt!
+  blockNumber: Int!
+  timestamp: BigInt! @index
+  txHash: String!
+}
+
 type Loan {
   id: ID!
   chainId: Int!

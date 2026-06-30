@@ -208,6 +208,27 @@ contracts:
             - hash
       - event: UpdateLiquidityLimit(address user, uint256 original_balance, uint256 original_supply, uint256 working_balance, uint256 working_supply)
 
+  # veCRV vote-escrow + fee distribution (protocol revenue).
+  - name: VotingEscrow
+    events:
+      - event: Deposit(address indexed provider, uint256 value, uint256 indexed locktime, int128 type, uint256 ts)
+        field_selection:
+          transaction_fields:
+            - hash
+      - event: Withdraw(address indexed provider, uint256 value, uint256 ts)
+        field_selection:
+          transaction_fields:
+            - hash
+      - event: Supply(uint256 prevSupply, uint256 supply)
+
+  - name: FeeDistributor
+    events:
+      - event: CheckpointToken(uint256 time, uint256 tokens)
+      - event: Claimed(address indexed recipient, uint256 amount, uint256 claim_epoch, uint256 max_epoch)
+        field_selection:
+          transaction_fields:
+            - hash
+
   # scrvUSD savings vault (ERC4626).
   - name: ScrvUsdVault
     events:
@@ -229,6 +250,15 @@ chains:
         address:
           - 0x2F50D538606Fa9EDD2B11E2446BEb18C9D5846bB
       - name: Gauge
+      - name: VotingEscrow
+        address:
+          - 0x5f3b5DfEb7B28CDbD7FAba78963EE202a494e2A2
+        start_block: 10650387
+      - name: FeeDistributor
+        address:
+          - 0xA464e6DCda8AC41e03616F95f4BC98a13b8922Dc
+          - 0xD16d5eC345Dd86Fb63C6a9C43c517210F1027914
+        start_block: 11362396
       - name: TricryptoFactoryNG
         address:
           - 0x0c0e5f2fF0ff18a3be9b835635039256dC4B4963
