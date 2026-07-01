@@ -297,6 +297,66 @@ export const getPoolCoins = createEffect(
   },
 );
 
+// --- CRYPTO_V1 factory: resolve pool from LP token ---
+//
+// The old crypto factory (0xF18056Bb, "factory-crypto") deploys the pool and
+// its LP token as SEPARATE contracts; CryptoPoolDeployed carries only the LP
+// token. The LP token's `minter()` is the pool that actually emits
+// TokenExchange, so we read it to register/track the real pool.
+const minterAbi = parseAbi(["function minter() view returns (address)"]);
+
+/**
+ * Resolve the real pool address for a CRYPTO_V1 LP token by reading minter().
+ * Called directly (not via the Effect API) because contractRegister has no
+ * effect caller — mirrors resolveLatestStablePool. Returns the lowercased pool
+ * address, or undefined if the read reverts.
+ */
+export async function resolveCryptoPoolFromToken(
+  chainId: number,
+  token: string,
+  blockNumber: number,
+): Promise<string | undefined> {
+  try {
+    const client = getClient(chainId);
+    const pool = (await client.readContract({
+      address: token as `0x${string}`,
+      abi: minterAbi,
+      functionName: "minter",
+      blockNumber: BigInt(blockNumber),
+    })) as string;
+    return pool.toLowerCase();
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Effect-wrapped form of resolveCryptoPoolFromToken for use inside event
+ * handlers (which double-run in preload and must route RPC through the Effect
+ * API). Mirrors resolveStablePoolEffect.
+ */
+export const resolveCryptoPoolEffect = createEffect(
+  {
+    name: "resolveCryptoPool",
+    input: S.schema({
+      chainId: S.number,
+      token: S.string,
+      blockNumber: S.number,
+    }),
+    output: S.union([S.string, null]),
+    cache: true,
+    rateLimit: false,
+  },
+  async ({ input }) => {
+    const addr = await resolveCryptoPoolFromToken(
+      input.chainId,
+      input.token,
+      input.blockNumber,
+    );
+    return addr ?? null;
+  },
+);
+
 // crvUSD PriceAggregator — system-wide crvUSD price (~1e18 = $1). Used to stamp
 // the peg price at the moment of each PegKeeper action. Resilient: returns "0"
 // if the read reverts (e.g. an archive gap) so the handler treats it as unknown.

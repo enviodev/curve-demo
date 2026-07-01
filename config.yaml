@@ -95,6 +95,14 @@ contracts:
       - event: PlainPoolDeployed(address[4] coins, uint256 A, uint256 fee, address deployer)
       - event: MetaPoolDeployed(address coin, address base_pool, uint256 A, uint256 fee, address deployer)
 
+  # Curve's factory-crvusd stableswap factory (mainnet only). Unlike the NG
+  # factory, its PlainPoolDeployed event CARRIES the pool address as the last
+  # arg, so no pool_list resolution is needed. Deployed pools are registered as
+  # StableswapPool — same int128 TokenExchange as Stableswap-NG.
+  - name: CrvUsdStableFactory
+    events:
+      - event: PlainPoolDeployed(address[4] coins, uint256 A, uint256 fee, address deployer, address pool)
+
   # Curve Lend (one-way lending markets). NewVault carries every address, so
   # controller/amm/vault are registered with no RPC resolution. The Controller
   # + LLAMMA design is shared with the crvUSD mint markets.
@@ -211,6 +219,9 @@ chains:
         address:
           - 0x6A8cbed756804B16E05E741eDaBd5cB544AE21bf
       - name: StableswapPool
+      - name: CrvUsdStableFactory
+        address:
+          - 0x4F8846Ae9380B90d2E71D5e3D042dff3E7ebb40d
       - name: MainRegistry
         address:
           - 0x90E00ACe148ca3b23Ac1bC8C240C2a7Dd9c2d7f5

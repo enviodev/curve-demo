@@ -1,5 +1,10 @@
 import { indexer, type Pool } from "envio";
-import { getTokenSymbol, getTokenDecimals } from "../effects.js";
+import {
+  getTokenSymbol,
+  getTokenDecimals,
+  resolveCryptoPoolFromToken,
+  resolveCryptoPoolEffect,
+} from "../effects.js";
 import { ZERO, ensureAllPoolPairs, ensureToken } from "../pricing.js";
 
 type CreatePoolArgs = {
@@ -14,7 +19,7 @@ type CreatePoolArgs = {
   block: { number: number; timestamp: number };
 };
 
-async function createPool(context: any, args: CreatePoolArgs) {
+export async function createPool(context: any, args: CreatePoolArgs) {
   const { chainId, poolAddress, coins, block } = args;
   const poolId = `${chainId}_${poolAddress.toLowerCase()}`;
   const nCoins = coins.length;
@@ -138,20 +143,38 @@ indexer.onEvent(
 
 // --- Twocrypto Factory V1 (2-coin pools, older) ---
 //
-// The V1 factory's deploy event only carries the LP token address (the pool
-// and LP token share the same contract). No name/symbol in the event, so we
-// fetch the ERC20 symbol via RPC and reuse it as the pool name.
+// The V1 factory ("factory-crypto") deploys the pool and its LP token as
+// SEPARATE contracts; CryptoPoolDeployed carries only the LP token address. The
+// pool that actually emits TokenExchange is the LP token's minter(), so we
+// resolve it and register/track that. No name/symbol in the event, so we fetch
+// the LP token's ERC20 symbol via RPC and reuse it as the pool name.
 
 indexer.contractRegister(
   { contract: "TwocryptoFactoryV1", event: "CryptoPoolDeployed" },
   async ({ event, context }) => {
-    context.chain.CryptoPool.add(event.params.token);
+    // Fall back to the LP token if minter() resolution fails so we never
+    // silently drop a pool.
+    const pool = await resolveCryptoPoolFromToken(
+      event.chainId,
+      event.params.token,
+      event.block.number,
+    );
+    context.chain.CryptoPool.add(
+      (pool ?? event.params.token) as `0x${string}`,
+    );
   },
 );
 
 indexer.onEvent(
   { contract: "TwocryptoFactoryV1", event: "CryptoPoolDeployed" },
   async ({ event, context }) => {
+  const resolved = await context.effect(resolveCryptoPoolEffect, {
+    chainId: event.chainId,
+    token: event.params.token,
+    blockNumber: event.block.number,
+  });
+  const poolAddress = resolved ?? event.params.token;
+
   const symbol = (await context.effect(getTokenSymbol, {
     chainId: event.chainId,
     address: event.params.token,
@@ -159,7 +182,7 @@ indexer.onEvent(
 
   await createPool(context, {
     chainId: event.chainId,
-    poolAddress: event.params.token,
+    poolAddress,
     lpTokenAddress: event.params.token,
     coins: event.params.coins,
     symbol,

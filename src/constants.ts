@@ -42,6 +42,26 @@ export function isStablecoin(chainId: number, address: string): boolean {
   return STABLECOINS[chainId]?.has(address.toLowerCase()) ?? false;
 }
 
+// Tokens the swap-derived price graph mis-prices badly enough to inflate pool
+// TVL. We refuse to derive a price for them, refuse to price other tokens off
+// them, and count them as $0 in TVL (see pricing.ts). Addresses lower-cased for
+// membership checks (mirrors STABLECOINS).
+export const BLACKLIST: Record<number, Set<string>> = {
+  // Ethereum mainnet
+  1: new Set(
+    [
+      "0x166c293f2e3b180f00b25e82ad5b592a7c8f4d3d", // ₿Gold
+      "0xb38d44c98e001195c017f6ef7645b5737579080f", // FLY
+      "0xf951e335afb289353dc249e82926178eac7ded78", // swETH
+      "0xc3ade5ace1bbb033ccae8177c12ecbfa16bd6a9d", // InswETH
+    ].map((a) => a.toLowerCase()),
+  ),
+};
+
+export function isBlacklisted(chainId: number, address: string): boolean {
+  return BLACKLIST[chainId]?.has(address.toLowerCase()) ?? false;
+}
+
 export function tokenId(chainId: number, address: string): string {
   return `${chainId}_${address.toLowerCase()}`;
 }

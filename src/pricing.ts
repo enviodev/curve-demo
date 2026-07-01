@@ -1,5 +1,5 @@
 import { BigDecimal, type Token, type Pool, type PoolPair } from "envio";
-import { isStablecoin, tokenId } from "./constants.js";
+import { isStablecoin, isBlacklisted, tokenId } from "./constants.js";
 
 // A precomputed $1 used for stablecoins. bignumber.js is immutable so we can
 // reuse a single instance.
@@ -361,6 +361,13 @@ export function computeTvlUsd(
     const t = tokens[i];
     const bal = pool.balances[i];
     const dec = pool.coinDecimals[i];
+    // A blacklisted coin is mispriced by the swap graph — count it as $0 rather
+    // than letting its garbage price (or an undefined price) poison the whole
+    // pool's TVL. Keeps the good side of a mixed pool intact.
+    if (t && isBlacklisted(pool.chainId, t.address)) {
+      values.push(ZERO);
+      continue;
+    }
     if (!t || t.usdPrice === undefined || bal === undefined || dec === undefined)
       return undefined;
     values.push(toDecimal(bal, dec).multipliedBy(t.usdPrice));
@@ -430,6 +437,8 @@ export function deriveAndApplySwapPrice(
   const boughtP = bought.usdPrice;
 
   const apply = (token: Token, price: BigDecimal) => {
+    // Never apply a swap-derived price to a blacklisted token.
+    if (isBlacklisted(token.chainId, token.address)) return;
     if (!price.isGreaterThan(0) || !price.isFinite()) return;
     if (price.isGreaterThan(MAX_TOKEN_PRICE)) return;
     // Reject outliers relative to the token's current price (first price passes).
@@ -453,6 +462,7 @@ export function deriveAndApplySwapPrice(
 
   if (
     soldP !== undefined &&
+    !isBlacklisted(sold.chainId, sold.address) &&
     !bought.isStablecoin &&
     (boughtP === undefined || bought.priceSource === "DERIVED")
   ) {
@@ -463,6 +473,7 @@ export function deriveAndApplySwapPrice(
     );
   } else if (
     boughtP !== undefined &&
+    !isBlacklisted(bought.chainId, bought.address) &&
     !sold.isStablecoin &&
     (soldP === undefined || sold.priceSource === "DERIVED")
   ) {
