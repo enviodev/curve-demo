@@ -367,7 +367,10 @@ export function computeTvlUsd(
   }
   if (values.length === 0) return ZERO;
   const sorted = [...values].sort((a, b) => a.comparedTo(b) ?? 0);
-  const median = sorted[Math.floor(sorted.length / 2)] ?? ZERO;
+  // Lower-middle element: for a 2-coin pool this is the SMALLER value, so a
+  // single mispriced coin can't be its own reference (using the upper-middle
+  // would make the cap 50x the garbage — useless).
+  const median = sorted[Math.floor((sorted.length - 1) / 2)] ?? ZERO;
   const cap = median.multipliedBy(MAX_COIN_VALUE_RATIO);
   let total = ZERO;
   for (const v of values) {
@@ -395,6 +398,11 @@ export function computeTvlUsd(
 const MIN_AMOUNT = new BigDecimal("0.000001");
 const MIN_SWAP_USD = new BigDecimal("10");
 const MAX_PRICE_RATIO = new BigDecimal("20");
+// No Curve pool token trades above this per unit (WBTC ~$100k is the practical
+// ceiling). A higher DERIVED price is swap-graph garbage — e.g. USDM derived at
+// $89B off one imbalanced trade. Reject it at the source so it can't poison the
+// token or inflate any pool's TVL; a later sane swap prices the token correctly.
+const MAX_TOKEN_PRICE = new BigDecimal("10000000");
 
 export function deriveAndApplySwapPrice(
   context: any,
@@ -415,6 +423,7 @@ export function deriveAndApplySwapPrice(
 
   const apply = (token: Token, price: BigDecimal) => {
     if (!price.isGreaterThan(0) || !price.isFinite()) return;
+    if (price.isGreaterThan(MAX_TOKEN_PRICE)) return;
     // Reject outliers relative to the token's current price (first price passes).
     if (token.usdPrice !== undefined && token.usdPrice.isGreaterThan(0)) {
       const ratio = price.dividedBy(token.usdPrice);
