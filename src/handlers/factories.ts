@@ -159,7 +159,11 @@ indexer.contractRegister(
       event.params.token,
       event.block.number,
     );
-    context.chain.CryptoPool.add(
+    // V1 factory pools emit the OLD 5-param TokenExchange (no fee/price_scale),
+    // so they belong to LegacyCryptoPool (5-param, 2-coin), NOT CryptoPool
+    // (7-param, used by the NG factories). Registering as CryptoPool captured
+    // nothing. createPool (in onEvent) still stamps them poolType CRYPTO_V1.
+    context.chain.LegacyCryptoPool.add(
       (pool ?? event.params.token) as `0x${string}`,
     );
   },

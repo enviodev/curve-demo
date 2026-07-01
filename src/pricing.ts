@@ -195,7 +195,10 @@ export function computePricing(
     boughtUsdPrice = tokensSoldDecimal
       .multipliedBy(soldUsdPrice)
       .dividedBy(tokensBoughtDecimal);
-    if (!tokens.bought.isStablecoin) {
+    if (
+      !tokens.bought.isStablecoin &&
+      !isBlacklisted(chainId, tokens.bought.address)
+    ) {
       tokenUpdates.push({
         ...tokens.bought,
         usdPrice: boughtUsdPrice,
@@ -213,7 +216,10 @@ export function computePricing(
     soldUsdPrice = tokensBoughtDecimal
       .multipliedBy(boughtUsdPrice)
       .dividedBy(tokensSoldDecimal);
-    if (!tokens.sold.isStablecoin) {
+    if (
+      !tokens.sold.isStablecoin &&
+      !isBlacklisted(chainId, tokens.sold.address)
+    ) {
       tokenUpdates.push({
         ...tokens.sold,
         usdPrice: soldUsdPrice,
