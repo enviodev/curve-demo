@@ -233,3 +233,44 @@ indexer.onEvent(
     }
   },
 );
+
+// Liquidity events: no trade, but refresh balances + TVL from on-chain state so
+// crypto pools that hold liquidity yet have never traded still report a TVL
+// (previously they read $0 because TVL only refreshed on TokenExchange).
+async function refreshLiquidity(event: EventLike, context: any) {
+  const pool = await ensurePool(event, context);
+  const chainId = event.chainId;
+  const { balances, lastPrices, priceScales } = await getPoolState(context, {
+    chainId: chainId as EvmChainId,
+    address: event.srcAddress,
+    nCoins: pool.nCoins,
+    blockNumber: event.block.number,
+  });
+  const allTokens = await Promise.all(
+    pool.coinAddresses.map((addr) => context.Token.get(tokenId(chainId, addr))),
+  );
+  const tvlUsd = computeTvlUsd({ ...pool, balances }, allTokens);
+  context.Pool.set({
+    ...pool,
+    lastPrices,
+    priceScales,
+    balances,
+    tvlUsd,
+    lastUpdatedBlock: event.block.number,
+    lastUpdatedTimestamp: BigInt(event.block.timestamp),
+  });
+}
+
+indexer.onEvent(
+  { contract: "LegacyCryptoPool", event: "AddLiquidity" },
+  async ({ event, context }) => {
+    await refreshLiquidity(event, context);
+  },
+);
+
+indexer.onEvent(
+  { contract: "LegacyCryptoPool", event: "RemoveLiquidity" },
+  async ({ event, context }) => {
+    await refreshLiquidity(event, context);
+  },
+);
