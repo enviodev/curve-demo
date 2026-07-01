@@ -22,6 +22,7 @@ enum PoolType {
 enum PriceSource {
   STABLECOIN
   DERIVED
+  POOL_LP
 }
 
 enum PriceType {

@@ -344,18 +344,36 @@ export function pairIdForSwap(
  * Recompute the Pool's tvl_usd from current balances + token USD prices.
  * Returns undefined if any coin lacks a usdPrice.
  */
+// A Curve pool holds coins pegged to a common unit (all ~$1, all ~BTC, all
+// ~gold, and even crypto pools balance to ~equal value per coin), so one coin's
+// USD value should never dwarf the others. If a single illiquid coin is
+// mispriced by the swap graph (e.g. XAUM at $25M), cap its contribution at this
+// multiple of the median coin value so it can't inflate the pool's TVL to
+// billions. Healthy pools (values within a small band) are unaffected.
+const MAX_COIN_VALUE_RATIO = new BigDecimal("50");
+
 export function computeTvlUsd(
   pool: Pool,
   tokens: (Token | undefined)[],
 ): BigDecimal | undefined {
-  let total = ZERO;
+  const values: BigDecimal[] = [];
   for (let i = 0; i < pool.nCoins; i++) {
     const t = tokens[i];
     const bal = pool.balances[i];
     const dec = pool.coinDecimals[i];
     if (!t || t.usdPrice === undefined || bal === undefined || dec === undefined)
       return undefined;
-    total = total.plus(toDecimal(bal, dec).multipliedBy(t.usdPrice));
+    values.push(toDecimal(bal, dec).multipliedBy(t.usdPrice));
+  }
+  if (values.length === 0) return ZERO;
+  const sorted = [...values].sort((a, b) => a.comparedTo(b) ?? 0);
+  const median = sorted[Math.floor(sorted.length / 2)] ?? ZERO;
+  const cap = median.multipliedBy(MAX_COIN_VALUE_RATIO);
+  let total = ZERO;
+  for (const v of values) {
+    total = total.plus(
+      median.isGreaterThan(0) && v.isGreaterThan(cap) ? cap : v,
+    );
   }
   return total;
 }
@@ -462,7 +480,10 @@ export async function priceLpToken(
   context.Token.set({
     ...lpTok,
     usdPrice: price,
-    priceSource: "DERIVED",
+    // POOL_LP is authoritative (TVL / supply) — deriveAndApplySwapPrice only
+    // overwrites DERIVED prices, so a metapool swap can't clobber this with a
+    // bad guess (the 3Crv-reads-$11 regression).
+    priceSource: "POOL_LP",
     lastPricedBlock: block.number,
     lastPricedTimestamp: BigInt(block.timestamp),
   });
