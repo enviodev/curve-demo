@@ -184,19 +184,14 @@ async function refreshStableState(
   event: StableEvent,
   context: any,
   pool: Pool,
-  deltas: bigint[],
+  _deltas: bigint[],
 ): Promise<void> {
-  let balances: bigint[];
-  if (pool.balances.length === pool.nCoins) {
-    balances = pool.balances.slice();
-    for (let i = 0; i < deltas.length && i < balances.length; i++) {
-      const next = (balances[i] ?? 0n) + deltas[i]!;
-      balances[i] = next > 0n ? next : 0n;
-    }
-  } else {
-    balances = pool.balances.slice();
-  }
-
+  // Use AUTHORITATIVE on-chain balances (getStablePoolStateCached already reads
+  // them — once per pool during backfill, per-event at head). We deliberately do
+  // NOT event-source balances: the per-swap admin fee that leaves the pool isn't
+  // in the TokenExchange event, so derived balances drift high over a pool's
+  // lifetime (crvUSD/USDC pools read ~4-6x their real TVL). This matches the
+  // legacy-stableswap handler and keeps current TVL exact vs Curve's API.
   const state = await getStablePoolStateCached(context, {
     chainId: event.chainId as EvmChainId,
     address: event.srcAddress,
@@ -209,10 +204,10 @@ async function refreshStableState(
       context.Token.get(tokenId(event.chainId, addr)),
     ),
   );
-  const tvlUsd = computeTvlUsd({ ...pool, balances }, tokens);
+  const tvlUsd = computeTvlUsd({ ...pool, balances: state.balances }, tokens);
   context.Pool.set({
     ...pool,
-    balances,
+    balances: state.balances,
     a: state.a,
     virtualPrice: state.virtualPrice,
     tvlUsd,
