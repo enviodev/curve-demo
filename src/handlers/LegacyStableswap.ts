@@ -12,6 +12,7 @@ import {
   toDecimal,
   computeTvlUsd,
   deriveAndApplySwapPrice,
+  priceLpToken,
   upsertDailySnapshot,
 } from "../pricing.js";
 
@@ -214,6 +215,7 @@ indexer.onEvent(
       lastUpdatedTimestamp: BigInt(event.block.timestamp),
     };
     context.Pool.set(finalPool);
+    await priceLpToken(context, finalPool, state.totalSupply, tvlUsd, event.block);
     await upsertDailySnapshot(context, finalPool, event.block, swapVol, 1);
 
     const globalId = `${chainId}`;

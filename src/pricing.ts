@@ -24,7 +24,10 @@ export async function ensureToken(
   const existing = await context.Token.get(id);
   if (existing) return existing;
 
-  const stable = isStablecoin(chainId, address);
+  // crvUSD is Curve's own $1-pegged stablecoin and the borrowed asset for every
+  // Lend / mint market; recognise it by symbol so it is priced $1 on every chain
+  // (the per-chain address list can't keep up with bridged deployments).
+  const stable = isStablecoin(chainId, address) || symbol === "crvUSD";
   const token: Token = {
     id,
     chainId,
@@ -363,6 +366,18 @@ export function computeTvlUsd(
  * never overwrites a stablecoin anchor, and only propagates from a known price.
  * `tokens*Decimal` are human-unit (decimal-normalized) amounts.
  */
+// Guards that keep the swap-derived price graph from being corrupted by
+// rounding-dust or imbalanced trades (the cause of e.g. an LP token being priced
+// at ~$108M and inflating a metapool's TVL to billions):
+//  - MIN_AMOUNT: ignore trades where either leg is dust in token units, so a
+//    5e-7-token leg can't imply an astronomical price.
+//  - MIN_SWAP_USD: only price off trades that move a meaningful amount of value.
+//  - MAX_PRICE_RATIO: never let a single trade move a token's existing price by
+//    more than 20x — normal volatility passes, garbage is rejected.
+const MIN_AMOUNT = new BigDecimal("0.000001");
+const MIN_SWAP_USD = new BigDecimal("10");
+const MAX_PRICE_RATIO = new BigDecimal("20");
+
 export function deriveAndApplySwapPrice(
   context: any,
   sold: Token,
@@ -372,8 +387,8 @@ export function deriveAndApplySwapPrice(
   block: { number: number; timestamp: number },
 ): void {
   if (
-    !tokensSoldDecimal.isGreaterThan(0) ||
-    !tokensBoughtDecimal.isGreaterThan(0)
+    tokensSoldDecimal.isLessThan(MIN_AMOUNT) ||
+    tokensBoughtDecimal.isLessThan(MIN_AMOUNT)
   ) {
     return;
   }
@@ -381,6 +396,17 @@ export function deriveAndApplySwapPrice(
   const boughtP = bought.usdPrice;
 
   const apply = (token: Token, price: BigDecimal) => {
+    if (!price.isGreaterThan(0) || !price.isFinite()) return;
+    // Reject outliers relative to the token's current price (first price passes).
+    if (token.usdPrice !== undefined && token.usdPrice.isGreaterThan(0)) {
+      const ratio = price.dividedBy(token.usdPrice);
+      if (
+        ratio.isGreaterThan(MAX_PRICE_RATIO) ||
+        ratio.isLessThan(ONE_USD.dividedBy(MAX_PRICE_RATIO))
+      ) {
+        return;
+      }
+    }
     context.Token.set({
       ...token,
       usdPrice: price,
@@ -395,6 +421,7 @@ export function deriveAndApplySwapPrice(
     !bought.isStablecoin &&
     (boughtP === undefined || bought.priceSource === "DERIVED")
   ) {
+    if (tokensSoldDecimal.multipliedBy(soldP).isLessThan(MIN_SWAP_USD)) return;
     apply(
       bought,
       tokensSoldDecimal.multipliedBy(soldP).dividedBy(tokensBoughtDecimal),
@@ -404,11 +431,41 @@ export function deriveAndApplySwapPrice(
     !sold.isStablecoin &&
     (soldP === undefined || sold.priceSource === "DERIVED")
   ) {
+    if (tokensBoughtDecimal.multipliedBy(boughtP).isLessThan(MIN_SWAP_USD)) return;
     apply(
       sold,
       tokensBoughtDecimal.multipliedBy(boughtP).dividedBy(tokensSoldDecimal),
     );
   }
+}
+
+/**
+ * Value a pool's own LP token from its TVL / supply, so that when that LP token
+ * is itself a coin in a metapool (e.g. crvRenWSBTC inside the tBTC metapool) the
+ * metapool's TVL is computed correctly instead of using a swap-derived guess.
+ * Only touches non-stablecoin tokens that already exist (i.e. are used elsewhere).
+ */
+export async function priceLpToken(
+  context: any,
+  pool: Pool,
+  totalSupply: bigint,
+  tvlUsd: BigDecimal | undefined,
+  block: { number: number; timestamp: number },
+): Promise<void> {
+  if (tvlUsd === undefined || totalSupply <= 0n) return;
+  const lpTok = await context.Token.get(
+    tokenId(pool.chainId, pool.lpTokenAddress),
+  );
+  if (!lpTok || lpTok.isStablecoin) return;
+  const price = tvlUsd.dividedBy(toDecimal(totalSupply, 18));
+  if (!price.isGreaterThan(0) || !price.isFinite()) return;
+  context.Token.set({
+    ...lpTok,
+    usdPrice: price,
+    priceSource: "DERIVED",
+    lastPricedBlock: block.number,
+    lastPricedTimestamp: BigInt(block.timestamp),
+  });
 }
 
 /**

@@ -15,6 +15,7 @@ import {
   toDecimal,
   computeTvlUsd,
   deriveAndApplySwapPrice,
+  priceLpToken,
   upsertDailySnapshot,
 } from "../pricing.js";
 
@@ -216,6 +217,7 @@ async function refreshStableState(
     lastUpdatedBlock: event.block.number,
     lastUpdatedTimestamp: BigInt(event.block.timestamp),
   });
+  await priceLpToken(context, pool, state.totalSupply, tvlUsd, event.block);
 }
 
 function liquidityEventId(event: StableEvent) {
