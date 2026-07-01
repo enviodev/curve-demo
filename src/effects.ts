@@ -646,7 +646,15 @@ export const getLegacyPoolMeta = createEffect(
   },
   async ({ input }) => {
     const client = getClient(input.chainId);
-    const reg = LEGACY_REGISTRY[input.chainId]! as `0x${string}`;
+    // LegacyStablePool now runs on every chain the OLD metapool factory covers,
+    // but the Main Registry (source of this metadata) only exists on mainnet.
+    // Off-mainnet legacy pools are the factory's, and their Pool entity is
+    // created on deploy — so this effect is only reached for them if that
+    // creation was skipped. Return empty (caller then skips) instead of
+    // dereferencing a missing registry address.
+    const regAddr = LEGACY_REGISTRY[input.chainId];
+    if (!regAddr) return { coins: [], decimals: [], symbol: "", name: "" };
+    const reg = regAddr as `0x${string}`;
     const pool = input.address as `0x${string}`;
     const [coins, decimals, lp] = await Promise.all([
       client.readContract({ address: reg, abi: legacyRegistryAbi, functionName: "get_coins", args: [pool] }) as Promise<readonly string[]>,
@@ -667,5 +675,121 @@ export const getLegacyPoolMeta = createEffect(
       symbol,
       name,
     };
+  },
+);
+
+// ============================================================
+// OLD stableswap metapool factory (pre-NG)
+// ============================================================
+//
+// Curve's original ("metapool") stableswap factory. Its pools share the exact
+// legacy int128 TokenExchange interface with registry-listed pools, so they are
+// registered as `LegacyStablePool` and indexed by the LegacyStableswap swap
+// handler. The factory itself mirrors the Stableswap-NG factory (address-less
+// deploy events resolved via pool_list(pool_count()-1)) EXCEPT that its
+// get_coins/get_decimals return FIXED-size arrays (address[4]/uint256[4]) padded
+// with the zero address — the NG factory uses dynamic address[]/uint256[]. So it
+// needs a separate ABI, but pool_count/pool_list are identical, which is why
+// `resolveLatestStablePool` is reused directly. Fraxtal (252) and Sonic (146)
+// have no old factory and are intentionally absent.
+export const OLD_METAPOOL_FACTORY: Record<number, string> = {
+  1: "0xb9fc157394af804a3578134a6585c0dc9cc990d4",
+  137: "0x722272d36ef0da72ff51c5a65db7b870e2e8d4ee",
+  250: "0x686d67265703d1f124c45e33d47d794c566889ba",
+  42161: "0xb17b674D9c5CB2e441F8e196a2f048A81355d031",
+  43114: "0xb17b674D9c5CB2e441F8e196a2f048A81355d031",
+  10: "0x2db0E83599a91b508Ac268a6197b8B14F5e72840",
+  100: "0xD19Baeadc667Cf2015e395f2B08668Ef120f41F5",
+  8453: "0x3093f9B57A428F3EB6285a589cb35bEA6e78c336",
+  56: "0xEfDE221f306152971D8e9f181bFe998447975810",
+};
+
+// FIXED-array getters (address[4]/uint256[4]) — the defining difference from the
+// NG factory. is_meta/get_base_pool are read best-effort to flag metapools.
+const oldFactoryAbi = parseAbi([
+  "function pool_count() view returns (uint256)",
+  "function pool_list(uint256 i) view returns (address)",
+  "function get_coins(address pool) view returns (address[4])",
+  "function get_decimals(address pool) view returns (uint256[4])",
+  "function get_n_coins(address pool) view returns (uint256)",
+  "function get_base_pool(address pool) view returns (address)",
+  "function is_meta(address pool) view returns (bool)",
+]);
+
+/**
+ * Pool metadata via the OLD metapool factory. Mirrors `getStablePoolMeta` but
+ * decodes the fixed 4-slot get_coins/get_decimals arrays (padded with the zero
+ * address) and derives `isMeta` from is_meta / a non-zero base_pool rather than
+ * trusting a single getter. symbol/name come from the pool itself (these factory
+ * pools are their own ERC20 LP token).
+ */
+export const getOldFactoryPoolMeta = createEffect(
+  {
+    name: "getOldFactoryPoolMeta",
+    input: S.schema({ chainId: S.number, address: S.string }),
+    output: S.schema({
+      coins: S.array(S.string),
+      decimals: S.array(S.number),
+      isMeta: S.boolean,
+      symbol: S.string,
+      name: S.string,
+    }),
+    cache: true,
+    rateLimit: false,
+  },
+  async ({ input }) => {
+    const client = getClient(input.chainId);
+    const factory = OLD_METAPOOL_FACTORY[input.chainId];
+    if (!factory) {
+      return { coins: [], decimals: [], isMeta: false, symbol: "", name: "" };
+    }
+    const f = factory as `0x${string}`;
+    const pool = input.address as `0x${string}`;
+    const [coins, decimals, basePool, isMetaFlag, symbol, name] =
+      await Promise.all([
+        client.readContract({ address: f, abi: oldFactoryAbi, functionName: "get_coins", args: [pool] }) as Promise<readonly string[]>,
+        client.readContract({ address: f, abi: oldFactoryAbi, functionName: "get_decimals", args: [pool] }) as Promise<readonly bigint[]>,
+        (client.readContract({ address: f, abi: oldFactoryAbi, functionName: "get_base_pool", args: [pool] }) as Promise<string>).catch(() => ZERO_ADDRESS),
+        (client.readContract({ address: f, abi: oldFactoryAbi, functionName: "is_meta", args: [pool] }) as Promise<boolean>).catch(() => false),
+        (client.readContract({ address: pool, abi: stablePoolAbi, functionName: "symbol" }) as Promise<string>).catch(() => "???"),
+        (client.readContract({ address: pool, abi: stablePoolAbi, functionName: "name" }) as Promise<string>).catch(() => ""),
+      ]);
+    // get_coins/get_decimals return MAX_COINS(=4)-sized arrays padded with zeros.
+    const coinList = coins.filter((c) => c.toLowerCase() !== ZERO_ADDRESS);
+    const decList = decimals.slice(0, coinList.length).map((d) => Number(d));
+    const hasBasePool = basePool.toLowerCase() !== ZERO_ADDRESS;
+    return {
+      coins: coinList.map((c) => c.toLowerCase()),
+      decimals: decList,
+      isMeta: isMetaFlag || hasBasePool,
+      symbol,
+      name,
+    };
+  },
+);
+
+/**
+ * Resolve the pool just deployed by the OLD metapool factory at `blockNumber`.
+ * Effect-wrapped form (handlers double-run in preload and must route RPC through
+ * the Effect API). Reuses `resolveLatestStablePool` — pool_count/pool_list are
+ * byte-for-byte identical to the NG factory.
+ */
+export const resolveOldFactoryPoolEffect = createEffect(
+  {
+    name: "resolveOldFactoryPool",
+    input: S.schema({ chainId: S.number, blockNumber: S.number }),
+    output: S.union([S.string, null]),
+    cache: true,
+    rateLimit: false,
+  },
+  async ({ input }) => {
+    const factory = OLD_METAPOOL_FACTORY[input.chainId];
+    if (!factory) return null;
+    const addr = await resolveLatestStablePool(
+      input.chainId,
+      factory,
+      input.blockNumber,
+    );
+    return addr ?? null;
   },
 );
