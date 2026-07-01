@@ -54,6 +54,15 @@ export const BLACKLIST: Record<number, Set<string>> = {
       "0xb38d44c98e001195c017f6ef7645b5737579080f", // FLY
       "0xf951e335afb289353dc249e82926178eac7ded78", // swETH
       "0xc3ade5ace1bbb033ccae8177c12ecbfa16bd6a9d", // InswETH
+      // iBBT-based synthetic junk pools surfaced once CRYPTO_V1 pools were
+      // indexed — both coins mispriced × huge balances (iREAL-f $8.35B,
+      // DRACHMAE-f $1.37B, iGTEC-f $581M, iQUINTA-f). The relative TVL clamp
+      // can't catch both-sides-inflated pools; blacklisting the coins zeroes them.
+      "0x691c25c461dafc47792b6e4d674fbb637bca1c6f", // iBBT
+      "0x04a289fe4ce5fa87a76f58d0214340fb5893a58c", // REAL
+      "0x2915acaa744e36befb3c539c3d99a7f82ad8e6c9", // GRD
+      "0x30e193bd3f52713d5562cf316f35115034525f44", // GTEC
+      "0x3d5a15a9d8ea1d76a32cd70eea882968992d8d95", // QUINTA
     ].map((a) => a.toLowerCase()),
   ),
 };
