@@ -61,6 +61,7 @@ contracts:
   - name: StableswapPool
     events:
       - event: TokenExchange(address indexed buyer, int128 sold_id, uint256 tokens_sold, int128 bought_id, uint256 tokens_bought)
+      - event: TokenExchangeUnderlying(address indexed buyer, int128 sold_id, uint256 tokens_sold, int128 bought_id, uint256 tokens_bought)
       - event: AddLiquidity(address indexed provider, uint256[] token_amounts, uint256[] fees, uint256 invariant, uint256 token_supply)
       - event: RemoveLiquidity(address indexed provider, uint256[] token_amounts, uint256[] fees, uint256 token_supply)
       - event: RemoveLiquidityOne(address indexed provider, int128 token_id, uint256 token_amount, uint256 coin_amount, uint256 token_supply)
@@ -76,6 +77,7 @@ contracts:
   - name: LegacyStablePool
     events:
       - event: TokenExchange(address indexed buyer, int128 sold_id, uint256 tokens_sold, int128 bought_id, uint256 tokens_bought)
+      - event: TokenExchangeUnderlying(address indexed buyer, int128 sold_id, uint256 tokens_sold, int128 bought_id, uint256 tokens_bought)
 
   # Curve's OLD stableswap metapool factory (pre-NG). Address-less deploy events
   # (resolved via pool_list(pool_count()-1), like the NG factory). Deployed pools

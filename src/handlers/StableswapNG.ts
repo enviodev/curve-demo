@@ -7,6 +7,7 @@ import {
   getStablePoolState,
   getStablePoolStateCached,
   getTokenSymbol,
+  getMetapoolUnderlyingCoins,
 } from "../effects.js";
 import { tokenId } from "../constants.js";
 import {
@@ -285,6 +286,7 @@ indexer.onEvent(
       tokensSoldDecimal,
       tokensBoughtDecimal,
       volumeUsd,
+      isUnderlying: false,
       blockNumber: event.block.number,
       timestamp: BigInt(event.block.timestamp),
       logIndex: event.logIndex,
@@ -308,6 +310,153 @@ indexer.onEvent(
       context.Pool.set(finalPool);
       await upsertDailySnapshot(context, finalPool, event.block, swapVol, 1);
     }
+
+    const globalId = `${chainId}`;
+    const global = await context.GlobalState.get(globalId);
+    if (global) {
+      context.GlobalState.set({
+        ...global,
+        totalSwaps: global.totalSwaps + 1n,
+        totalVolumeUsd: global.totalVolumeUsd.plus(swapVol),
+        lastUpdatedBlock: event.block.number,
+        lastUpdatedTimestamp: BigInt(event.block.timestamp),
+      });
+    }
+  },
+);
+
+// --- Underlying swaps (metapools) -------------------------------------------
+//
+// exchange_underlying routes a trade through the metapool's base pool, so this
+// event's sold_id/bought_id are UNDERLYING indices: 0 = the metapool's own
+// coin[0], 1.. = the BASE pool's coins. getMetapoolUnderlyingCoins resolves that
+// flattened [coin0, ...baseCoins] list so we can map indices → real tokens. We
+// mirror the regular handler's volume/count bookkeeping but do NOT event-source
+// balances/TVL: an underlying trade's amounts are in base-coin units, not the
+// metapool's own coin[1] (base-LP) balance, so applying them as deltas is wrong.
+indexer.onEvent(
+  { contract: "StableswapPool", event: "TokenExchangeUnderlying" },
+  async ({ event, context }) => {
+    const pool = await ensureStablePool(
+      event.chainId,
+      event.srcAddress,
+      event.block,
+      context,
+    );
+    if (!pool) return;
+    const chainId = event.chainId;
+
+    const coin0 = pool.coinAddresses[0];
+    const coin0Dec = pool.coinDecimals[0];
+    if (!coin0 || coin0Dec === undefined) return;
+
+    const underlying = await context.effect(getMetapoolUnderlyingCoins, {
+      chainId,
+      address: pool.address,
+      coin0,
+      coin0Decimals: coin0Dec,
+    });
+
+    const soldIdx = Number(event.params.sold_id);
+    const boughtIdx = Number(event.params.bought_id);
+    const soldAddr = underlying.coins[soldIdx];
+    const boughtAddr = underlying.coins[boughtIdx];
+    const soldDec = underlying.decimals[soldIdx];
+    const boughtDec = underlying.decimals[boughtIdx];
+    if (
+      !soldAddr ||
+      !boughtAddr ||
+      soldDec === undefined ||
+      boughtDec === undefined
+    )
+      return;
+
+    // Ensure both underlying tokens exist (reuse if already seen; else read the
+    // symbol on-chain like ensureStablePool does for a pool's own coins).
+    let soldTok = await context.Token.get(tokenId(chainId, soldAddr));
+    if (!soldTok) {
+      const sym = await context.effect(getTokenSymbol, {
+        chainId,
+        address: soldAddr,
+      });
+      soldTok = await ensureToken(
+        context,
+        chainId,
+        soldAddr,
+        sym,
+        soldDec,
+        event.block,
+      );
+    }
+    let boughtTok = await context.Token.get(tokenId(chainId, boughtAddr));
+    if (!boughtTok) {
+      const sym = await context.effect(getTokenSymbol, {
+        chainId,
+        address: boughtAddr,
+      });
+      boughtTok = await ensureToken(
+        context,
+        chainId,
+        boughtAddr,
+        sym,
+        boughtDec,
+        event.block,
+      );
+    }
+
+    const tokensSoldDecimal = toDecimal(
+      event.params.tokens_sold,
+      soldTok.decimals,
+    );
+    const tokensBoughtDecimal = toDecimal(
+      event.params.tokens_bought,
+      boughtTok.decimals,
+    );
+
+    let volumeUsd: BigDecimal | undefined;
+    if (soldTok.usdPrice !== undefined) {
+      volumeUsd = tokensSoldDecimal.multipliedBy(soldTok.usdPrice);
+    } else if (boughtTok.usdPrice !== undefined) {
+      volumeUsd = tokensBoughtDecimal.multipliedBy(boughtTok.usdPrice);
+    }
+
+    deriveAndApplySwapPrice(
+      context,
+      soldTok,
+      boughtTok,
+      tokensSoldDecimal,
+      tokensBoughtDecimal,
+      event.block,
+    );
+
+    context.Swap.set({
+      id: `${chainId}_${event.block.number}_${event.logIndex}`,
+      chainId,
+      pool_id: pool.id,
+      buyer: event.params.buyer,
+      soldId: soldIdx,
+      boughtId: boughtIdx,
+      tokensSold: event.params.tokens_sold,
+      tokensBought: event.params.tokens_bought,
+      tokensSoldDecimal,
+      tokensBoughtDecimal,
+      volumeUsd,
+      isUnderlying: true,
+      blockNumber: event.block.number,
+      timestamp: BigInt(event.block.timestamp),
+      logIndex: event.logIndex,
+    });
+
+    const swapVol = volumeUsd ?? ZERO;
+    const finalPool = {
+      ...pool,
+      totalSwapCount: pool.totalSwapCount + 1n,
+      totalVolumeUsd: pool.totalVolumeUsd.plus(swapVol),
+      lastUpdatedBlock: event.block.number,
+      lastUpdatedTimestamp: BigInt(event.block.timestamp),
+    };
+    context.Pool.set(finalPool);
+    await upsertDailySnapshot(context, finalPool, event.block, swapVol, 1);
 
     const globalId = `${chainId}`;
     const global = await context.GlobalState.get(globalId);

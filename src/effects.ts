@@ -793,3 +793,134 @@ export const resolveOldFactoryPoolEffect = createEffect(
     return addr ?? null;
   },
 );
+
+// ============================================================
+// Metapool underlying-coin resolution (TokenExchangeUnderlying)
+// ============================================================
+//
+// `exchange_underlying` routes a trade through the metapool's base pool, so the
+// TokenExchangeUnderlying event's sold_id/bought_id are UNDERLYING indices:
+// index 0 is the metapool's own coin[0] (its non-base coin, e.g. FRAX), and
+// indices 1.. are the BASE pool's coins (e.g. DAI/USDC/USDT for a 3pool base).
+// To map indices → real tokens we must resolve the base pool and its coins.
+//
+// There are THREE on-chain flavors (all verified on mainnet):
+//   1. Registry / hand-deployed old metapools (e.g. GUSD 0x4f0626..):
+//        base_pool()  (lowercase Vyper storage getter) works.
+//   2. OLD metapool-FACTORY pools (e.g. FRAX3CRV 0xd632.., MIM 0x5a6a..):
+//        base_pool()/BASE_POOL() BOTH revert — the base pool is only exposed by
+//        the factory's get_base_pool(pool).
+//   3. Stableswap-NG metapools (e.g. 0x579a..):
+//        BASE_POOL()  (UPPERCASE — NG stores it as a public immutable, and Vyper
+//        preserves the declared casing in the getter name).
+// We probe all three sources in one allowFailure batch and take the first
+// non-zero result. The base pool's own coins are then read via coins(uint256),
+// which is lowercase on every plain/base pool (legacy 3pool and NG alike).
+const metapoolAbi = parseAbi([
+  "function base_pool() view returns (address)",
+  "function BASE_POOL() view returns (address)",
+  "function get_base_pool(address pool) view returns (address)",
+]);
+
+/**
+ * Resolve a stableswap metapool's flattened UNDERLYING coin list + decimals for
+ * TokenExchangeUnderlying: `[coin0, ...baseCoins]`, aligned to the event's
+ * underlying indices. coin0/coin0Decimals are supplied by the caller (already on
+ * the Pool entity → no extra RPC). Everything is best-effort: if no base pool is
+ * found (the pool isn't actually a metapool) we return just `[coin0]`, and the
+ * handler then treats any base-coin index as out-of-range and skips the swap.
+ * cache:true — the mapping is immutable per pool. Reads at `latest` (base pool +
+ * its coins never change), matching getStablePoolMeta.
+ */
+export const getMetapoolUnderlyingCoins = createEffect(
+  {
+    name: "getMetapoolUnderlyingCoins",
+    input: S.schema({
+      chainId: S.number,
+      address: S.string,
+      coin0: S.string,
+      coin0Decimals: S.number,
+    }),
+    output: S.schema({
+      coins: S.array(S.string),
+      decimals: S.array(S.number),
+    }),
+    cache: true,
+    rateLimit: false,
+  },
+  async ({ input }) => {
+    const coin0 = input.coin0.toLowerCase();
+    const fallback = { coins: [coin0], decimals: [input.coin0Decimals] };
+    try {
+      const client = getClient(input.chainId);
+      const pool = input.address as `0x${string}`;
+
+      // Probe every known base-pool getter in one allowFailure batch.
+      const resolveCalls: any[] = [
+        { address: pool, abi: metapoolAbi, functionName: "base_pool" },
+        { address: pool, abi: metapoolAbi, functionName: "BASE_POOL" },
+      ];
+      const oldFactory = OLD_METAPOOL_FACTORY[input.chainId];
+      if (oldFactory) {
+        resolveCalls.push({
+          address: oldFactory as `0x${string}`,
+          abi: metapoolAbi,
+          functionName: "get_base_pool",
+          args: [pool],
+        });
+      }
+      const resolved = await safeMulticall(client, resolveCalls);
+      let basePool: string | undefined;
+      for (const r of resolved) {
+        if (r.status === "success") {
+          const a = (r.result as string | undefined)?.toLowerCase();
+          if (a && a !== ZERO_ADDRESS) {
+            basePool = a;
+            break;
+          }
+        }
+      }
+      if (!basePool) return fallback;
+
+      // Base pool coins via coins(uint256) (lowercase on every plain/base pool).
+      // Read 0..7 and stop at the first revert/zero (caps at MAX_COINS).
+      const base = basePool as `0x${string}`;
+      const coinResults = await safeMulticall(
+        client,
+        Array.from({ length: 8 }, (_, i) => ({
+          address: base,
+          abi: poolAbi,
+          functionName: "coins",
+          args: [BigInt(i)],
+        })),
+      );
+      const baseCoins: string[] = [];
+      for (const r of coinResults) {
+        if (r.status !== "success") break;
+        const a = (r.result as string | undefined)?.toLowerCase();
+        if (!a || a === ZERO_ADDRESS) break;
+        baseCoins.push(a);
+      }
+
+      // Base coin decimals (best-effort; default 18).
+      const decResults = await safeMulticall(
+        client,
+        baseCoins.map((c) => ({
+          address: c as `0x${string}`,
+          abi: erc20Abi,
+          functionName: "decimals",
+        })),
+      );
+      const baseDecimals = decResults.map((r) =>
+        r.status === "success" ? Number(r.result as bigint | number) : 18,
+      );
+
+      return {
+        coins: [coin0, ...baseCoins],
+        decimals: [input.coin0Decimals, ...baseDecimals],
+      };
+    } catch {
+      return fallback;
+    }
+  },
+);

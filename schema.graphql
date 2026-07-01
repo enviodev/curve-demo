@@ -101,6 +101,9 @@ type Swap {
   tokensSoldDecimal: BigDecimal!
   tokensBoughtDecimal: BigDecimal!
   volumeUsd: BigDecimal
+  # True for TokenExchangeUnderlying (metapool trades routed through the base
+  # pool, e.g. FRAX↔USDC in a FRAX/3CRV metapool); false/absent for direct swaps.
+  isUnderlying: Boolean
   blockNumber: Int! @index
   timestamp: BigInt! @index
   logIndex: Int!
