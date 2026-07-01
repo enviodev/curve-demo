@@ -17,6 +17,7 @@ import {
   computeTvlUsd,
   deriveAndApplySwapPrice,
   priceLpToken,
+  sanitizeVolumeUsd,
   upsertDailySnapshot,
 } from "../pricing.js";
 
@@ -261,6 +262,7 @@ indexer.onEvent(
     } else if (boughtTok?.usdPrice !== undefined) {
       volumeUsd = tokensBoughtDecimal.multipliedBy(boughtTok.usdPrice);
     }
+    volumeUsd = sanitizeVolumeUsd(volumeUsd);
 
     // Price-graph: propagate USD price across the swap to the unpriced side.
     if (soldTok && boughtTok) {
@@ -419,6 +421,7 @@ indexer.onEvent(
     } else if (boughtTok.usdPrice !== undefined) {
       volumeUsd = tokensBoughtDecimal.multipliedBy(boughtTok.usdPrice);
     }
+    volumeUsd = sanitizeVolumeUsd(volumeUsd);
 
     deriveAndApplySwapPrice(
       context,

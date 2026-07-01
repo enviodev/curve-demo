@@ -312,11 +312,11 @@ export function computePricing(
   return {
     price,
     usdMainPrice: mainUsdPrice,
-    usdMainVolume,
+    usdMainVolume: sanitizeVolumeUsd(usdMainVolume),
     usdReferencePrice: referenceUsdPrice,
-    usdReferenceVolume,
+    usdReferenceVolume: sanitizeVolumeUsd(usdReferenceVolume),
     usdFee,
-    usdVolume,
+    usdVolume: sanitizeVolumeUsd(usdVolume),
     tokensSoldDecimal,
     tokensBoughtDecimal,
     feeDecimal,
@@ -350,7 +350,7 @@ export function pairIdForSwap(
 // mispriced by the swap graph (e.g. XAUM at $25M), cap its contribution at this
 // multiple of the median coin value so it can't inflate the pool's TVL to
 // billions. Healthy pools (values within a small band) are unaffected.
-const MAX_COIN_VALUE_RATIO = new BigDecimal("50");
+const MAX_COIN_VALUE_RATIO = new BigDecimal("20");
 
 export function computeTvlUsd(
   pool: Pool,
@@ -402,7 +402,15 @@ const MAX_PRICE_RATIO = new BigDecimal("20");
 // ceiling). A higher DERIVED price is swap-graph garbage — e.g. USDM derived at
 // $89B off one imbalanced trade. Reject it at the source so it can't poison the
 // token or inflate any pool's TVL; a later sane swap prices the token correctly.
-const MAX_TOKEN_PRICE = new BigDecimal("10000000");
+const MAX_TOKEN_PRICE = new BigDecimal("500000");
+// No single Curve swap moves more than this in USD — a computed volume above it
+// means a mispriced token leg. Drop the volume (leave the swap recorded) so the
+// per-pool/global volume totals can't be inflated to the sextillions.
+const MAX_SWAP_USD = new BigDecimal("1000000000");
+export const sanitizeVolumeUsd = (
+  v: BigDecimal | undefined,
+): BigDecimal | undefined =>
+  v !== undefined && v.isGreaterThan(MAX_SWAP_USD) ? undefined : v;
 
 export function deriveAndApplySwapPrice(
   context: any,

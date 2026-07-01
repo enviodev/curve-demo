@@ -14,6 +14,7 @@ import {
   computeTvlUsd,
   deriveAndApplySwapPrice,
   priceLpToken,
+  sanitizeVolumeUsd,
   upsertDailySnapshot,
 } from "../pricing.js";
 
@@ -161,6 +162,7 @@ indexer.onEvent(
     } else if (boughtTok?.usdPrice !== undefined) {
       volumeUsd = tokensBoughtDecimal.multipliedBy(boughtTok.usdPrice);
     }
+    volumeUsd = sanitizeVolumeUsd(volumeUsd);
 
     if (soldTok && boughtTok) {
       deriveAndApplySwapPrice(
@@ -328,6 +330,7 @@ indexer.onEvent(
     } else if (boughtTok.usdPrice !== undefined) {
       volumeUsd = tokensBoughtDecimal.multipliedBy(boughtTok.usdPrice);
     }
+    volumeUsd = sanitizeVolumeUsd(volumeUsd);
 
     deriveAndApplySwapPrice(
       context,
