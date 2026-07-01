@@ -37,6 +37,14 @@ contracts:
     events:
       - event: TokenExchange(address indexed buyer, uint256 sold_id, uint256 tokens_sold, uint256 bought_id, uint256 tokens_bought)
 
+  # Curve's original 2-coin crypto pools (cvxeth, crvEURTUSD, spelleth, teth,
+  # EURC/3Crv, XAUt/3Crv, USDC/EURS) — listed in the crypto registry
+  # (0x8F942C20) but deployed manually before the crypto factory. Same old
+  # 5-field TokenExchange signature as legacy tricrypto. 2-coin; static address.
+  - name: LegacyCryptoPool
+    events:
+      - event: TokenExchange(address indexed buyer, uint256 sold_id, uint256 tokens_sold, uint256 bought_id, uint256 tokens_bought)
+
   # Standalone 2-coin Curve crypto pool with donation features. Not deployed
   # by any of the tracked factories above, so it is registered statically by
   # address per chain. Pool entity is initialized lazily on the first event.
@@ -189,6 +197,15 @@ chains:
       - name: LegacyTricryptoPool
         address:
           - 0xd51a44d3fae010294c616388b506acda1bfaae46
+      - name: LegacyCryptoPool
+        address:
+          - 0x9838eccc42659fa8aa7daf2ad134b53984c9427b
+          - 0x98a7f18d4e56cfe84e3d081b40001b3d5bd3eb8b
+          - 0xe84f5b1582ba325fdf9ce6b0c1f087ccfc924e54
+          - 0xb576491f1e6e5e62f1d8f26062ee822b40b0e0d4
+          - 0xadcfcf9894335dc340f6cd182afa45999f45fc44
+          - 0x98638facf9a3865cd033f36548713183f6996122
+          - 0x752ebeb79963cf0732e9c0fec72a49fd1defaeac
       - name: CryptoPool
       - name: StableswapFactoryNG
         address:
